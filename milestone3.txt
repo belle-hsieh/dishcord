@@ -1,6 +1,24 @@
-
-
 Database name: dishcord-db
 
 User: cis5500
 Pass: cis5500goatclass
+
+SQL Queries
+
+1. Find restaurants with Michelin acclaim with lower than expected Yelp hype. That is, find restaurants appearing in both Michelin and Yelp datasets that have a Yelp rating below 4.5 stars.
+
+2. Using Yelp's hours data, allow a user to enter a time and return all restaurants currently open.
+
+3. Filter restaurants by "must try": return restaurants close to the user with >4.5 Yelp stars and >300 reviews.
+
+4. Given a city, return the top 10 most reviewed restaurants in that city.
+
+6. Given zip code, category, price range, output restaurant name, latitude, and longitude. We envision using this query to support our map feature; users will be able to plot restaurants fitting their criteria on a map.
+
+7. Find cities where Michelin acclaim diverges from popular opinion the most. That is, for restaurants in both datasets, get the average Michelin rating (after numerical encoding) and Yelp rating, group by city, and see which diverge the most.
+
+8. For a given restaurant, find restaurants with similar cuisine, price, and location. Compute average rating and review count for that group and then flag hidden gems and overhyped restaurants.
+
+9. Determine whether Yelp ratings for restaurants trend upwards over the years. Joining the Yelp businesses with the Yelp reviews, extract year from the review date, and compute average rating grouping by year and city.
+
+10. Use latitude and longitude to map each restaurant to a neighborhood (). Compute the average Yelp rating for all restaurants in each neighborhood, then for each neighborhood compute the difference between its rating and the weighted average of nearby neighbors. This models the idea of a hidden gem neighborhood.
