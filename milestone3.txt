@@ -1,0 +1,6 @@
+
+
+Database name: dishcord-db
+
+User: cis5500
+Pass: cis5500goatclass
