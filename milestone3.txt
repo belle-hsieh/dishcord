@@ -1,6 +1,30 @@
 
+New DDL:
+CREATE TABLE Restaurant (
+    BUSINESS_ID VARCHAR(255) PRIMARY KEY,
+    Name VARCHAR(255) NOT NULL,
+    Address VARCHAR(500) NOT NULL,
+    City VARCHAR(100) NOT NULL,
+    State VARCHAR(50) NOT NULL,
+    Postal_Code VARCHAR(20) NOT NULL,
+    Latitude DECIMAL(10, 7) NOT NULL,
+    Longitude DECIMAL(10, 7) NOT NULL,
+    STARS DECIMAL(2, 1) NOT NULL,
+    REVIEW_COUNT INT NOT NULL,
+    Categories TEXT NOT NULL,
+
+    UNIQUE (Name, Address)
+);
+
+CREATE TABLE Michelin (
+    Name VARCHAR(255),
+    Address VARCHAR(500),
+    Award VARCHAR(255) NOT NULL,
+    PRIMARY KEY (Name, Address),
+    FOREIGN KEY (Name, Address) REFERENCES Restaurant(Name, Address)
+);
 
 Database name: dishcord-db
-
+Endpoint: dishcord-db.cdgwgugyg1o1.us-east-1.rds.amazonaws.com
 User: cis5500
 Pass: cis5500goatclass
