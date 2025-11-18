@@ -7,18 +7,204 @@ SQL Queries
 
 1. Find restaurants with Michelin acclaim with lower than expected Yelp hype. That is, find restaurants appearing in both Michelin and Yelp datasets that have a Yelp rating below 4.5 stars.
 
+SQL: 
+
+SELECT
+    r.Restaurant_ID,
+    r.Name,
+    r.Address,
+    r.City,
+    r.State,
+    r.Agg_Yelp_Rating,
+    m.Michelin_Stars,
+    m.Bib_Gourmands
+FROM Restaurant r
+JOIN Michelin m
+  ON r.Name = m.Name
+ AND r.Address = m.Address
+WHERE r.Agg_Yelp_Rating < 4.5;
+
 2. Using Yelp's hours data, allow a user to enter a time and return all restaurants currently open.
 
 3. Filter restaurants by "must try": return restaurants close to the user with >4.5 Yelp stars and >300 reviews.
 
+SQL:
+
+SELECT
+    r.Restaurant_ID,
+    r.Name,
+    r.Address,
+    r.City,
+    r.State,
+    r.Agg_Yelp_Rating,
+    r.Rating_Quantity,
+    r.distance_km
+FROM (
+    SELECT
+        r.*,
+        6371 * 2 * ASIN(
+            SQRT(
+                POWER(SIN(RADIANS(:user_lat  - r.Latitude) / 2), 2) +
+                COS(RADIANS(r.Latitude)) * COS(RADIANS(:user_lat)) *
+                POWER(SIN(RADIANS(:user_lon - r.Longitude) / 2), 2)
+            )
+        ) AS distance_km
+    FROM Restaurant r
+) r
+WHERE r.Agg_Yelp_Rating >= 4.5
+  AND r.Rating_Quantity > 300
+  AND r.distance_km <= :max_distance_km
+ORDER BY
+    r.distance_km ASC,          -- ← NEW (closest first)
+    r.Agg_Yelp_Rating DESC,
+    r.Rating_Quantity DESC;
+
+
 4. Given a city, return the top 10 most reviewed restaurants in that city.
+
+SQL:
+
+SELECT
+    r.Restaurant_ID,
+    r.Name,
+    r.Address,
+    r.City,
+    r.State,
+    r.Rating_Quantity,
+    r.Agg_Yelp_Rating
+FROM Restaurant r
+WHERE r.City = :city
+ORDER BY r.Rating_Quantity DESC
+LIMIT 10;
+
+5. Compare photos per review ratio for Michelin vs. non-Michelin.
+
+WITH photos_per_business AS (
+    SELECT
+        b.business_id,
+        b.name,
+        b.address,
+        b.city,
+        b.state,
+        b.review_count,
+        COUNT(p.photo_id) AS photo_count,
+        CASE
+            WHEN b.review_count > 0
+                THEN COUNT(p.photo_id) / b.review_count
+            ELSE 0
+        END AS photos_per_review
+    FROM yelp_business b
+    LEFT JOIN yelp_photos p
+        ON b.business_id = p.business_id
+    GROUP BY
+        b.business_id, b.name, b.address, b.city, b.state, b.review_count
+),
+labeled AS (
+    SELECT
+        pb.*,
+        CASE
+            WHEN m.address IS NOT NULL THEN 'Michelin'
+            ELSE 'Non-Michelin'
+        END AS michelin_status
+    FROM photos_per_business pb
+    LEFT JOIN michelin_restaurants m
+      ON LOWER(TRIM(pb.address)) = LOWER(TRIM(m.address))
+     AND LOWER(TRIM(pb.city))    = LOWER(TRIM(m.city))
+     AND LOWER(TRIM(pb.state))   = LOWER(TRIM(m.state))
+)
+SELECT
+    michelin_status,
+    AVG(photos_per_review) AS avg_ppr,
+    COUNT(*)               AS restaurant_count
+FROM labeled
+GROUP BY michelin_status;
+
 
 6. Given zip code, category, price range, output restaurant name, latitude, and longitude. We envision using this query to support our map feature; users will be able to plot restaurants fitting their criteria on a map.
 
+This takes in :zip_code and :category as user inputs.
+
+SQL:
+SELECT
+    name,
+    latitude,
+    longitude
+FROM Restaurant
+WHERE zip_code = *zip_code_input*
+  AND (*category_input* IS NULL
+       OR LOWER(categories) LIKE '%' || LOWER(:category) || '%')
+
+
 7. Find cities where Michelin acclaim diverges from popular opinion the most. That is, for restaurants in both datasets, get the average Michelin rating (after numerical encoding) and Yelp rating, group by city, and see which diverge the most.
+
+SQL:
+
+WITH yelp_michelin_join AS (
+    SELECT
+        b.business_id,
+        b.city,
+        b.state,
+        b.stars AS yelp_stars,
+        CASE
+            WHEN m.michelin_rating ILIKE '3%' THEN 5
+            WHEN m.michelin_rating ILIKE '2%' THEN 4
+            WHEN m.michelin_rating ILIKE '1%' THEN 3
+            WHEN m.michelin_rating ILIKE 'Bib%' THEN 2
+            WHEN m.michelin_rating ILIKE 'Selected%' THEN 1
+            ELSE NULL
+        END AS michelin_score
+    FROM Restaurant b
+    JOIN Reviews r
+        ON b.business_id = r.business_id
+    JOIN Michelin m
+        ON LOWER(TRIM(b.address)) = LOWER(TRIM(m.address))
+       AND LOWER(TRIM(b.city))    = LOWER(TRIM(m.city))
+       AND LOWER(TRIM(b.state))   = LOWER(TRIM(m.state))
+),
+city_stats AS (
+    SELECT
+        city,
+        state,
+        AVG(yelp_stars) AS avg_yelp_rating,
+        AVG(michelin_score) AS avg_michelin_score
+    FROM yelp_michelin_join
+    WHERE michelin_score IS NOT NULL
+    GROUP BY city, state
+)
+SELECT
+    city,
+    state,
+    avg_yelp_rating,
+    avg_michelin_score,
+    (avg_yelp_rating - avg_michelin_score) AS diff,
+    ABS(avg_yelp_rating - avg_michelin_score) AS abs_diff
+FROM city_stats
+ORDER BY abs_diff DESC;
 
 8. For a given restaurant, find restaurants with similar cuisine, price, and location. Compute average rating and review count for that group and then flag hidden gems and overhyped restaurants.
 
 9. Determine whether Yelp ratings for restaurants trend upwards over the years. Joining the Yelp businesses with the Yelp reviews, extract year from the review date, and compute average rating grouping by year and city.
+
+SQL:
+
+WITH reviews_with_year AS (
+    SELECT
+        b.business_id,
+        b.city,
+        b.state,
+        EXTRACT(YEAR FROM r.review_date) AS review_year,
+        r.stars
+    FROM yelp_business b
+    JOIN yelp_reviews r
+        ON b.business_id = r.business_id
+)
+SELECT
+    city,
+    state,
+    review_year,
+    AVG(stars) AS avg_yelp_rating
+FROM reviews_with_year
+GROUP BY city, state, review_year
+ORDER BY city, state, review_year;
 
 10. Use latitude and longitude to map each restaurant to a neighborhood (). Compute the average Yelp rating for all restaurants in each neighborhood, then for each neighborhood compute the difference between its rating and the weighted average of nearby neighbors. This models the idea of a hidden gem neighborhood.
