@@ -35,19 +35,17 @@ SQL Queries
 SQL: 
 
 SELECT
-    r.Restaurant_ID,
     r.Name,
     r.Address,
     r.City,
     r.State,
-    r.Agg_Yelp_Rating,
-    m.Michelin_Stars,
-    m.Bib_Gourmands
+    r.STARS,
+    m.Award
 FROM Restaurant r
 JOIN Michelin m
   ON r.Name = m.Name
  AND r.Address = m.Address
-WHERE r.Agg_Yelp_Rating < 4.5;
+WHERE r.STARS < 4.5;
 
 2. Find the top 10 reviewed restaurants in a given city.
 
@@ -57,11 +55,11 @@ SQL:
 SELECT
     Name,
     Address,
-    Rating_Quantity,
-    Agg_Yelp_Rating
+    REVIEW_COUNT,
+    STARS
 FROM Restaurant
 WHERE City = *city*
-ORDER BY Rating_Quantity DESC
+ORDER BY REVIEW_COUNT DESC
 LIMIT 10;
 
 3. Filter restaurants by "must try": return restaurants close to the user according to a threshold they define with >4.5 Yelp stars and >300 reviews.
@@ -71,13 +69,12 @@ This takes in *user_lat*, *user_lon*, *max_distance_km* as inputs. It uses the H
 SQL:
 
 SELECT
-    r.Restaurant_ID,
     r.Name,
     r.Address,
     r.City,
     r.State,
-    r.Agg_Yelp_Rating,
-    r.Rating_Quantity,
+    r.STARS,
+    r.REVIEW_COUNT,
     r.distance_km
 FROM (
     SELECT
@@ -91,13 +88,13 @@ FROM (
         ) AS distance_km
     FROM Restaurant r
 ) r
-WHERE r.Agg_Yelp_Rating >= 4.5
-  AND r.Rating_Quantity > 300
+WHERE r.STARS >= 4.5
+  AND r.REVIEW_COUNT > 300
   AND r.distance_km <= *max_distance_km*
 ORDER BY
     r.distance_km ASC,
-    r.Agg_Yelp_Rating DESC,
-    r.Rating_Quantity DESC;
+    r.STARS DESC,
+    r.REVIEW_COUNT DESC;
 
 
 4. Given a city, return the top 10 most reviewed restaurants in that city.
@@ -107,16 +104,15 @@ This takes *city* as an input.
 SQL:
 
 SELECT
-    r.Restaurant_ID,
     r.Name,
     r.Address,
     r.City,
     r.State,
-    r.Rating_Quantity,
-    r.Agg_Yelp_Rating
+    r.REVIEW_COUNT,
+    r.STARS
 FROM Restaurant r
 WHERE r.City = *city*
-ORDER BY r.Rating_Quantity DESC
+ORDER BY r.REVIEW_COUNT DESC
 LIMIT 10;
 
 5. Compare photos per review ratio for Michelin vs. non-Michelin.
@@ -135,8 +131,8 @@ WITH photos_per_business AS (
                 THEN COUNT(p.photo_id) / b.review_count
             ELSE 0
         END AS photos_per_review
-    FROM yelp_business b
-    LEFT JOIN yelp_photos p
+    FROM Restaurant b
+    LEFT JOIN Photos p
         ON b.business_id = p.business_id
     GROUP BY
         b.business_id, b.name, b.address, b.city, b.state, b.review_count
@@ -149,7 +145,7 @@ labeled AS (
             ELSE 'Non-Michelin'
         END AS michelin_status
     FROM photos_per_business pb
-    LEFT JOIN michelin_restaurants m
+    LEFT JOIN Michelin m
       ON LOWER(TRIM(pb.address)) = LOWER(TRIM(m.address))
      AND LOWER(TRIM(pb.city)) = LOWER(TRIM(m.city))
      AND LOWER(TRIM(pb.state)) = LOWER(TRIM(m.state))
@@ -167,6 +163,7 @@ GROUP BY michelin_status;
 This takes in *zip_code_input* and *category_input* as user inputs.
 
 SQL:
+
 SELECT
     name,
     latitude,
@@ -186,7 +183,7 @@ WITH yelp_michelin_join AS (
         b.business_id,
         b.city,
         b.state,
-        b.stars AS yelp_stars,
+        b.STARS AS yelp_stars,
         CASE
             WHEN m.michelin_rating ILIKE '3%' THEN 5
             WHEN m.michelin_rating ILIKE '2%' THEN 4
@@ -233,7 +230,7 @@ WITH group_restaurants AS (
         b.name,
         b.city,
         b.price,
-        b.stars,
+        b.STARS as yelp_stars,
         b.review_count,
         b.categories
     FROM Restaurants b
@@ -251,20 +248,20 @@ peer_stats AS (
 SELECT
     g.business_id,
     g.name,
-    g.stars,
+    g.yelp_stars,
     g.review_count,
     ps.avg_rating,
     ps.avg_reviews,
     CASE
-        WHEN g.stars > ps.avg_rating AND g.review_count < ps.avg_reviews
+        WHEN g.yelp_stars > ps.avg_rating AND g.review_count < ps.avg_reviews
             THEN 'hidden_gem'
-        WHEN g.stars < ps.avg_rating AND g.review_count > ps.avg_reviews
+        WHEN g.yelp_stars < ps.avg_rating AND g.review_count > ps.avg_reviews
             THEN 'overhyped'
         ELSE 'typical'
     END AS label
 FROM group_restaurants g
-CROSS JOIN peer_stats ps
-ORDER BY label DESC, g.stars DESC;
+JOIN peer_stats ps
+ORDER BY label DESC, g.yelp_stars DESC;
 
 
 9. Determine whether Yelp ratings for restaurants trend upwards over the years. Joining the Yelp businesses with the Yelp reviews, extract year from the review date, and compute average rating grouping by year and city.
@@ -277,7 +274,7 @@ WITH reviews_with_year AS (
         b.city,
         b.state,
         EXTRACT(YEAR FROM r.review_date) AS review_year,
-        r.stars
+        r.STARS
     FROM Restaurant b
     JOIN Reviews r
         ON b.business_id = r.business_id
@@ -286,7 +283,7 @@ SELECT
     city,
     state,
     review_year,
-    AVG(stars) AS avg_yelp_rating
+    AVG(STARS) AS avg_yelp_rating
 FROM reviews_with_year
 GROUP BY city, state, review_year
 ORDER BY city, state, review_year;
@@ -298,7 +295,7 @@ SQL:
 
 SELECT
     unnest(b.categories) AS cuisine,
-    AVG(b.stars) AS avg_rating,
+    AVG(b.STARS) AS avg_rating,
     COUNT(*) AS num_restaurants
 FROM Restaurant b
 WHERE b.city = *city*
