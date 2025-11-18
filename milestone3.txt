@@ -26,7 +26,9 @@ WHERE r.Agg_Yelp_Rating < 4.5;
 
 2. Using Yelp's hours data, allow a user to enter a time and return all restaurants currently open.
 
-3. Filter restaurants by "must try": return restaurants close to the user with >4.5 Yelp stars and >300 reviews.
+3. Filter restaurants by "must try": return restaurants close to the user according to a threshold they define with >4.5 Yelp stars and >300 reviews.
+
+This takes in *user_lat*, *user_lon*, *max_distance_km* as inputs.
 
 SQL:
 
@@ -44,23 +46,25 @@ FROM (
         r.*,
         6371 * 2 * ASIN(
             SQRT(
-                POWER(SIN(RADIANS(:user_lat  - r.Latitude) / 2), 2) +
-                COS(RADIANS(r.Latitude)) * COS(RADIANS(:user_lat)) *
-                POWER(SIN(RADIANS(:user_lon - r.Longitude) / 2), 2)
+                POWER(SIN(RADIANS(*user_lat*  - r.Latitude) / 2), 2) +
+                COS(RADIANS(r.Latitude)) * COS(RADIANS(*user_lat*)) *
+                POWER(SIN(RADIANS(*user_lon* - r.Longitude) / 2), 2)
             )
         ) AS distance_km
     FROM Restaurant r
 ) r
 WHERE r.Agg_Yelp_Rating >= 4.5
   AND r.Rating_Quantity > 300
-  AND r.distance_km <= :max_distance_km
+  AND r.distance_km <= *max_distance_km*
 ORDER BY
-    r.distance_km ASC,          -- ← NEW (closest first)
+    r.distance_km ASC,
     r.Agg_Yelp_Rating DESC,
     r.Rating_Quantity DESC;
 
 
 4. Given a city, return the top 10 most reviewed restaurants in that city.
+
+This takes *city* as an input.
 
 SQL:
 
@@ -73,7 +77,7 @@ SELECT
     r.Rating_Quantity,
     r.Agg_Yelp_Rating
 FROM Restaurant r
-WHERE r.City = :city
+WHERE r.City = *city*
 ORDER BY r.Rating_Quantity DESC
 LIMIT 10;
 
@@ -109,20 +113,20 @@ labeled AS (
     FROM photos_per_business pb
     LEFT JOIN michelin_restaurants m
       ON LOWER(TRIM(pb.address)) = LOWER(TRIM(m.address))
-     AND LOWER(TRIM(pb.city))    = LOWER(TRIM(m.city))
-     AND LOWER(TRIM(pb.state))   = LOWER(TRIM(m.state))
+     AND LOWER(TRIM(pb.city)) = LOWER(TRIM(m.city))
+     AND LOWER(TRIM(pb.state)) = LOWER(TRIM(m.state))
 )
 SELECT
     michelin_status,
     AVG(photos_per_review) AS avg_ppr,
-    COUNT(*)               AS restaurant_count
+    COUNT(*) AS restaurant_count
 FROM labeled
 GROUP BY michelin_status;
 
 
 6. Given zip code, category, price range, output restaurant name, latitude, and longitude. We envision using this query to support our map feature; users will be able to plot restaurants fitting their criteria on a map.
 
-This takes in :zip_code and :category as user inputs.
+This takes in *zip_code_input* and *category_input* as user inputs.
 
 SQL:
 SELECT
@@ -132,7 +136,7 @@ SELECT
 FROM Restaurant
 WHERE zip_code = *zip_code_input*
   AND (*category_input* IS NULL
-       OR LOWER(categories) LIKE '%' || LOWER(:category) || '%')
+       OR LOWER(categories) LIKE '%' || LOWER(*category_input*) || '%')
 
 
 7. Find cities where Michelin acclaim diverges from popular opinion the most. That is, for restaurants in both datasets, get the average Michelin rating (after numerical encoding) and Yelp rating, group by city, and see which diverge the most.
