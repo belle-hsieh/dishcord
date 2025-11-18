@@ -2,7 +2,7 @@ New DDL:
 CREATE TABLE Restaurant (
     BUSINESS_ID VARCHAR(255) PRIMARY KEY,
     Name VARCHAR(255) NOT NULL,
-    Address VARCHAR(500) NOT NULL,
+    Address VARCHAR(500),
     City VARCHAR(100) NOT NULL,
     State VARCHAR(50) NOT NULL,
     Postal_Code VARCHAR(20) NOT NULL,
@@ -12,15 +12,15 @@ CREATE TABLE Restaurant (
     REVIEW_COUNT INT NOT NULL,
     Categories TEXT NOT NULL,
 
-    UNIQUE (Name, Address)
+    UNIQUE (Name)
 );
 
 CREATE TABLE Michelin (
     Name VARCHAR(255),
     Address VARCHAR(500),
     Award VARCHAR(255) NOT NULL,
-    PRIMARY KEY (Name, Address),
-    FOREIGN KEY (Name, Address) REFERENCES Restaurant(Name, Address)
+    PRIMARY KEY (Name),
+    FOREIGN KEY (Name) REFERENCES Restaurant(Name)
 );
 
 Database name: dishcord-db
