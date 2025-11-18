@@ -24,11 +24,24 @@ JOIN Michelin m
  AND r.Address = m.Address
 WHERE r.Agg_Yelp_Rating < 4.5;
 
-2. Using Yelp's hours data, allow a user to enter a time and return all restaurants currently open.
+2. Find the top 10 reviewed restaurants in a given city.
+
+This takes *city* as input.
+
+SQL:
+SELECT
+    Name,
+    Address,
+    Rating_Quantity,
+    Agg_Yelp_Rating
+FROM Restaurant
+WHERE City = *city*
+ORDER BY Rating_Quantity DESC
+LIMIT 10;
 
 3. Filter restaurants by "must try": return restaurants close to the user according to a threshold they define with >4.5 Yelp stars and >300 reviews.
 
-This takes in *user_lat*, *user_lon*, *max_distance_km* as inputs.
+This takes in *user_lat*, *user_lon*, *max_distance_km* as inputs. It uses the Haversine formula to calculate the distance between two points given their latitude and longitude.
 
 SQL:
 
@@ -185,7 +198,49 @@ SELECT
 FROM city_stats
 ORDER BY abs_diff DESC;
 
-8. For a given restaurant, find restaurants with similar cuisine, price, and location. Compute average rating and review count for that group and then flag hidden gems and overhyped restaurants.
+8. For a given cuisine and city, dompute average rating and review count for that group and then flag hidden gems and overhyped restaurants.
+
+This takes in *category* and *city* as inputs.
+
+WITH group_restaurants AS (
+    SELECT
+        b.business_id,
+        b.name,
+        b.city,
+        b.price,
+        b.stars,
+        b.review_count,
+        b.categories
+    FROM Restaurants b
+    WHERE b.city = *city*
+      AND (*category* = ANY(b.categories))
+),
+
+peer_stats AS (
+    SELECT
+        AVG(stars) AS avg_rating,
+        AVG(review_count) AS avg_reviews
+    FROM group_restaurants
+)
+
+SELECT
+    g.business_id,
+    g.name,
+    g.stars,
+    g.review_count,
+    ps.avg_rating,
+    ps.avg_reviews,
+    CASE
+        WHEN g.stars > ps.avg_rating AND g.review_count < ps.avg_reviews
+            THEN 'hidden_gem'
+        WHEN g.stars < ps.avg_rating AND g.review_count > ps.avg_reviews
+            THEN 'overhyped'
+        ELSE 'typical'
+    END AS label
+FROM group_restaurants g
+CROSS JOIN peer_stats ps
+ORDER BY label DESC, g.stars DESC;
+
 
 9. Determine whether Yelp ratings for restaurants trend upwards over the years. Joining the Yelp businesses with the Yelp reviews, extract year from the review date, and compute average rating grouping by year and city.
 
@@ -198,8 +253,8 @@ WITH reviews_with_year AS (
         b.state,
         EXTRACT(YEAR FROM r.review_date) AS review_year,
         r.stars
-    FROM yelp_business b
-    JOIN yelp_reviews r
+    FROM Restaurant b
+    JOIN Reviews r
         ON b.business_id = r.business_id
 )
 SELECT
@@ -211,4 +266,16 @@ FROM reviews_with_year
 GROUP BY city, state, review_year
 ORDER BY city, state, review_year;
 
-10. Use latitude and longitude to map each restaurant to a neighborhood (). Compute the average Yelp rating for all restaurants in each neighborhood, then for each neighborhood compute the difference between its rating and the weighted average of nearby neighbors. This models the idea of a hidden gem neighborhood.
+10. Check the most popular cuisines for a given city.
+
+This takes in *city* as an input.
+SQL:
+
+SELECT
+    unnest(b.categories) AS cuisine,
+    AVG(b.stars) AS avg_rating,
+    COUNT(*) AS num_restaurants
+FROM Restaurant b
+WHERE b.city = *city*
+GROUP BY cuisine
+ORDER BY avg_rating DESC;
