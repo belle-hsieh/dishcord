@@ -1,7 +1,7 @@
 {
   "rds_host": "dishcord-db.cdgwgugyg1o1.us-east-1.rds.amazonaws.com",
   "rds_port": "5432",
-  "rds_user": "cis550",
+  "rds_user": "cis5500",
   "rds_password": "cis5500goatclass",
   "rds_db": "dishcord-db",
   "server_host": "localhost",
