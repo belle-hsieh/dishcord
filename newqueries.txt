@@ -1,0 +1,267 @@
+1.
+
+SELECT
+    yri.name AS yelp_name,
+    yri.address AS yelp_address,
+    yri.city,
+    yri.state,
+    yri.stars,
+    mri.award
+FROM MichelinRestaurantInfo mri
+JOIN MichelinLocationInfo mli
+    ON mri.address = mli.address
+JOIN YelpRestaurantInfo yri
+    ON yri.name = mri.name
+JOIN YelpLocationInfo yli
+    ON yri.address = yli.address
+   AND yri.city = yli.city
+   AND yri.state = yli.state
+   AND yri.postal_code = yli.postal_code
+WHERE 
+    ABS(mli.latitude  - yli.latitude)  < 0.0005
+AND ABS(mli.longitude - yli.longitude) < 0.0005;
+
+2.
+
+SELECT
+    name,
+    address,
+    review_count,
+    stars
+FROM YelpRestaurantInfo
+WHERE city = :city
+ORDER BY review_count DESC
+LIMIT 10;
+
+3.
+
+SELECT
+    r.name,
+    r.address,
+    r.city,
+    r.state,
+    r.stars,
+    r.review_count,
+    dist.distance_km
+FROM YelpRestaurantInfo r
+JOIN YelpLocationInfo l
+    ON r.address = l.address
+   AND r.city = l.city
+   AND r.state = l.state
+   AND r.postal_code = l.postal_code
+CROSS JOIN LATERAL (
+    SELECT
+        6371 * 2 * ASIN(
+            SQRT(
+                POWER(SIN(RADIANS(:user_lat - l.latitude) / 2), 2) +
+                COS(RADIANS(l.latitude)) * COS(RADIANS(:user_lat)) *
+                POWER(SIN(RADIANS(:user_lon - l.longitude) / 2), 2)
+            )
+        ) AS distance_km
+) AS dist
+WHERE r.stars >= 4.5
+  AND r.review_count > 300
+  AND dist.distance_km <= :max_distance_km
+ORDER BY
+    dist.distance_km ASC,
+    r.stars DESC,
+    r.review_count DESC;
+
+4.
+
+5.
+
+WITH reviews_per_business AS (
+    SELECT
+        b.business_id,
+        b.name,
+        b.address,
+        b.city,
+        b.state,
+        b.review_count,
+        COUNT(r.review_id) AS review_entries,
+        CASE
+            WHEN b.review_count > 0
+                THEN COUNT(r.review_id)::decimal / b.review_count
+            ELSE 0
+        END AS reviews_per_review
+    FROM YelpRestaurantInfo b
+    LEFT JOIN YelpReviewInfo r
+        ON b.business_id = r.business_id
+    GROUP BY
+        b.business_id, b.name, b.address, b.city, b.state, b.review_count
+),
+labeled AS (
+    SELECT
+        rb.*,
+        CASE
+            WHEN mri.name IS NOT NULL THEN 'Michelin'
+            ELSE 'Non-Michelin'
+        END AS michelin_status
+    FROM reviews_per_business rb
+    LEFT JOIN MichelinRestaurantInfo mri
+        ON LOWER(TRIM(rb.name)) = LOWER(TRIM(mri.name))
+    JOIN MichelinLocationInfo mli
+        ON mri.address = mli.address
+)
+SELECT
+    michelin_status,
+    AVG(reviews_per_review) AS avg_reviews_per_review,
+    COUNT(*) AS restaurant_count
+FROM labeled
+GROUP BY michelin_status;
+
+
+6.
+
+SELECT
+    r.name,
+    l.latitude,
+    l.longitude
+FROM YelpRestaurantInfo r
+JOIN YelpLocationInfo l
+    ON r.address = l.address
+   AND r.city = l.city
+   AND r.state = l.state
+   AND r.postal_code = l.postal_code
+WHERE l.postal_code = :zip_code_input
+  AND (
+        :category_input IS NULL
+        OR LOWER(r.categories) LIKE '%' || LOWER(:category_input) || '%'
+      );
+
+
+7.
+
+WITH yelp_michelin_join AS (
+    SELECT
+        r.business_id,
+        r.city,
+        r.state,
+        r.stars AS yelp_stars,
+
+        CASE
+            WHEN mri.award ILIKE '3%' THEN 5
+            WHEN mri.award ILIKE '2%' THEN 4
+            WHEN mri.award ILIKE '1%' THEN 3
+            WHEN mri.award ILIKE 'Bib%' THEN 2
+            WHEN mri.award ILIKE 'Selected%' THEN 1
+            ELSE NULL
+        END AS michelin_score
+    FROM YelpRestaurantInfo r
+    JOIN YelpReviewInfo yr
+        ON r.business_id = yr.business_id
+
+    -- Michelin join: match by name AND approximate address
+    JOIN MichelinRestaurantInfo mri
+        ON LOWER(TRIM(r.name)) = LOWER(TRIM(mri.name))
+    JOIN MichelinLocationInfo mli
+        ON mri.address = mli.address
+),
+city_stats AS (
+    SELECT
+        city,
+        state,
+        AVG(yelp_stars) AS avg_yelp_rating,
+        AVG(michelin_score) AS avg_michelin_score
+    FROM yelp_michelin_join
+    WHERE michelin_score IS NOT NULL
+    GROUP BY city, state
+)
+SELECT
+    city,
+    state,
+    avg_yelp_rating,
+    avg_michelin_score,
+    (avg_yelp_rating - avg_michelin_score) AS diff,
+    ABS(avg_yelp_rating - avg_michelin_score) AS abs_diff
+FROM city_stats
+ORDER BY abs_diff DESC;
+
+
+8.
+
+WITH group_restaurants AS (
+    SELECT
+        r.business_id,
+        r.name,
+        r.city,
+        r.stars AS yelp_stars,
+        r.review_count,
+        r.categories,
+        r.attributes ->> 'RestaurantsPriceRange2' AS price
+    FROM YelpRestaurantInfo r
+    WHERE r.city = :city
+      AND (
+            :category IS NULL
+            OR LOWER(r.categories) LIKE '%' || LOWER(:category) || '%'
+          )
+),
+
+peer_stats AS (
+    SELECT
+        AVG(yelp_stars) AS avg_rating,
+        AVG(review_count) AS avg_reviews
+    FROM group_restaurants
+)
+
+SELECT
+    g.business_id,
+    g.name,
+    g.yelp_stars,
+    g.review_count,
+    ps.avg_rating,
+    ps.avg_reviews,
+
+    CASE
+        WHEN g.yelp_stars > ps.avg_rating
+         AND g.review_count < ps.avg_reviews
+            THEN 'hidden_gem'
+
+        WHEN g.yelp_stars < ps.avg_rating
+         AND g.review_count > ps.avg_reviews
+            THEN 'overhyped'
+
+        ELSE 'typical'
+    END AS label
+
+FROM group_restaurants g
+JOIN peer_stats ps
+ORDER BY label DESC, g.yelp_stars DESC;
+
+
+9.
+
+WITH reviews_with_year AS (
+    SELECT
+        r.business_id,
+        yr.city,
+        yr.state,
+        EXTRACT(YEAR FROM r.date) AS review_year,
+        r.stars
+    FROM YelpRestaurantInfo yr
+    JOIN YelpReviewInfo r
+        ON yr.business_id = r.business_id
+)
+SELECT
+    city,
+    state,
+    review_year,
+    AVG(stars) AS avg_yelp_rating
+FROM reviews_with_year
+GROUP BY city, state, review_year
+ORDER BY city, state, review_year;
+
+10.
+
+SELECT
+    TRIM(unnested.cuisine) AS cuisine,
+    AVG(r.stars) AS avg_rating,
+    COUNT(*) AS num_restaurants
+FROM YelpRestaurantInfo r
+CROSS JOIN LATERAL (
+    SELECT unnest(string_to_array(r.categories, ',')) AS cuisine
+) AS unnested
+WHERE r.city = :city
+GROUP BY TRIM(unnested.cuisine)
+ORDER BY avg_rating DESC;
