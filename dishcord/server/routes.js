@@ -822,6 +822,61 @@ const cuisine_ratings = async function(req, res) {
   );
 };
 
+/************************
+ * IMAGE FETCH ROUTE    *
+ ************************/
+
+const axios = require("axios");
+const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { parse } = require("url");
+
+const s3 = new S3Client({ region: "us-east-2" });
+
+// Route: GET /fetch-image
+// Description: Fetch a JPEG image from an AWS S3 URL (public or private) and return it
+const fetch_image = async function(req, res) {
+  const aws_url = req.query.aws_url;
+
+  if (!aws_url) {
+    return res.status(400).json({ error: "Missing parameter: aws_url" });
+  }
+
+  try {
+    if (aws_url.startsWith("http")) {
+      const response = await axios.get(aws_url, { responseType: "arraybuffer" });
+      res.set("Content-Type", "image/jpeg");
+      return res.send(response.data);
+    }
+
+    if (aws_url.startsWith("s3://")) {
+      const parsed = parse(aws_url);
+      const bucket = parsed.host;
+      const key = parsed.path.replace(/^\//, "");
+
+      const cmd = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key
+      });
+
+      const s3resp = await s3.send(cmd);
+
+      const chunks = [];
+      for await (const chunk of s3resp.Body) {
+        chunks.push(chunk);
+      }
+
+      res.set("Content-Type", "image/jpeg");
+      return res.send(Buffer.concat(chunks));
+    }
+
+    return res.status(400).json({ error: "Invalid AWS URL format" });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to fetch image", details: err.message });
+  }
+};
+
 
 module.exports = {
     create_user,
@@ -844,5 +899,6 @@ module.exports = {
     michelin_yelp_rating_comparison,
     hidden_gems,
     restaurant_ratings_over_time,
-    cuisine_ratings
+    cuisine_ratings,
+    fetch_image
 };

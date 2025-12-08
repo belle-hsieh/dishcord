@@ -3,7 +3,7 @@
   "rds_port": "5432",
   "rds_user": "cis5500",
   "rds_password": "cis5500goatclass",
-  "rds_db": "dishcord-db",
+  "rds_db": "postgres",
   "server_host": "localhost",
   "server_port": "8080"
 }

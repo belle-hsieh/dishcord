@@ -34,6 +34,8 @@ app.get('/hidden-gems/:city', routes.hidden_gems);
 app.get('/restaurant-ratings-over-time/:city', routes.restaurant_ratings_over_time);
 app.get('/cuisine-ratings/:city', routes.cuisine_ratings);
 
+app.get("/fetch-image", routes.fetch_image);
+
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)
 });
