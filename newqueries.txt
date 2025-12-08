@@ -7,12 +7,12 @@ SELECT
     yri.state,
     yri.stars,
     mri.award
-FROM MichelinRestaurantInfo mri
-JOIN MichelinLocationInfo mli
+FROM michelinrestaurantinfo mri
+JOIN michelinlocationinfo mli
     ON mri.address = mli.address
-JOIN YelpRestaurantInfo yri
+JOIN yelprestaurantinfo yri
     ON yri.name = mri.name
-JOIN YelpLocationInfo yli
+JOIN yelplocationinfo yli
     ON yri.address = yli.address
    AND yri.city = yli.city
    AND yri.state = yli.state
@@ -28,7 +28,7 @@ SELECT
     address,
     review_count,
     stars
-FROM YelpRestaurantInfo
+FROM yelprestaurantinfo
 WHERE city = :city
 ORDER BY review_count DESC
 LIMIT 10;
@@ -43,8 +43,8 @@ SELECT
     r.stars,
     r.review_count,
     dist.distance_km
-FROM YelpRestaurantInfo r
-JOIN YelpLocationInfo l
+FROM yelprestaurantinfo r
+JOIN yelplocationinfo l
     ON r.address = l.address
    AND r.city = l.city
    AND r.state = l.state
@@ -85,8 +85,8 @@ WITH reviews_per_business AS (
                 THEN COUNT(r.review_id)::decimal / b.review_count
             ELSE 0
         END AS reviews_per_review
-    FROM YelpRestaurantInfo b
-    LEFT JOIN YelpReviewInfo r
+    FROM yelprestaurantinfo b
+    LEFT JOIN yelpreviewinfo r
         ON b.business_id = r.business_id
     GROUP BY
         b.business_id, b.name, b.address, b.city, b.state, b.review_count
@@ -99,9 +99,9 @@ labeled AS (
             ELSE 'Non-Michelin'
         END AS michelin_status
     FROM reviews_per_business rb
-    LEFT JOIN MichelinRestaurantInfo mri
+    LEFT JOIN michelinrestaurantinfo mri
         ON LOWER(TRIM(rb.name)) = LOWER(TRIM(mri.name))
-    JOIN MichelinLocationInfo mli
+    JOIN michelinlocationinfo mli
         ON mri.address = mli.address
 )
 SELECT
@@ -118,8 +118,8 @@ SELECT
     r.name,
     l.latitude,
     l.longitude
-FROM YelpRestaurantInfo r
-JOIN YelpLocationInfo l
+FROM yelprestaurantinfo r
+JOIN yelplocationinfo l
     ON r.address = l.address
    AND r.city = l.city
    AND r.state = l.state
@@ -148,14 +148,14 @@ WITH yelp_michelin_join AS (
             WHEN mri.award ILIKE 'Selected%' THEN 1
             ELSE NULL
         END AS michelin_score
-    FROM YelpRestaurantInfo r
-    JOIN YelpReviewInfo yr
+    FROM yelprestaurantinfo r
+    JOIN yelpreviewinfo yr
         ON r.business_id = yr.business_id
 
     -- Michelin join: match by name AND approximate address
-    JOIN MichelinRestaurantInfo mri
+    JOIN michelinrestaurantinfo mri
         ON LOWER(TRIM(r.name)) = LOWER(TRIM(mri.name))
-    JOIN MichelinLocationInfo mli
+    JOIN michelinlocationinfo mli
         ON mri.address = mli.address
 ),
 city_stats AS (
@@ -190,7 +190,7 @@ WITH group_restaurants AS (
         r.review_count,
         r.categories,
         r.attributes ->> 'RestaurantsPriceRange2' AS price
-    FROM YelpRestaurantInfo r
+    FROM yelprestaurantinfo r
     WHERE r.city = :city
       AND (
             :category IS NULL
@@ -239,8 +239,8 @@ WITH reviews_with_year AS (
         yr.state,
         EXTRACT(YEAR FROM r.date) AS review_year,
         r.stars
-    FROM YelpRestaurantInfo yr
-    JOIN YelpReviewInfo r
+    FROM yelprestaurantinfo yr
+    JOIN yelpreviewinfo r
         ON yr.business_id = r.business_id
 )
 SELECT
@@ -258,7 +258,7 @@ SELECT
     TRIM(unnested.cuisine) AS cuisine,
     AVG(r.stars) AS avg_rating,
     COUNT(*) AS num_restaurants
-FROM YelpRestaurantInfo r
+FROM yelprestaurantinfo r
 CROSS JOIN LATERAL (
     SELECT unnest(string_to_array(r.categories, ',')) AS cuisine
 ) AS unnested
