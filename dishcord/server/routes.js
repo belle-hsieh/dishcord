@@ -823,6 +823,38 @@ const cuisine_ratings = async function(req, res) {
 };
 
 /************************
+ * IMAGE URL ROUTE    *
+ ************************/
+
+// Route: GET /photos/:business_id
+// Description: Return all AWS URLs for photos belonging to a given business
+const list_business_photos = async function(req, res) {
+  const businessId = req.params.business_id;
+
+  if (!businessId) {
+    return res.status(400).json({ error: "Missing required parameter: business_id" });
+  }
+
+  connection.query(
+    `
+    SELECT aws_url
+    FROM photos
+    WHERE business_id = $1
+    ORDER BY photo_id
+    `,
+    [businessId],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json([]);
+      } else {
+        return res.json(data.rows.map(row => row.aws_url));
+      }
+    }
+  );
+};
+
+/************************
  * IMAGE FETCH ROUTE    *
  ************************/
 
@@ -900,5 +932,6 @@ module.exports = {
     hidden_gems,
     restaurant_ratings_over_time,
     cuisine_ratings,
+    list_business_photos,
     fetch_image
 };

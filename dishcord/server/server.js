@@ -33,7 +33,7 @@ app.get('/michelin-yelp-rating-comparison', routes.michelin_yelp_rating_comparis
 app.get('/hidden-gems/:city', routes.hidden_gems);
 app.get('/restaurant-ratings-over-time/:city', routes.restaurant_ratings_over_time);
 app.get('/cuisine-ratings/:city', routes.cuisine_ratings);
-
+app.get('/photos/:business_id', routes.list_business_photos);
 app.get("/fetch-image", routes.fetch_image);
 
 app.listen(config.server_port, () => {
