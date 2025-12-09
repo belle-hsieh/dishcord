@@ -5,5 +5,9 @@
   "rds_password": "cis5500goatclass",
   "rds_db": "postgres",
   "server_host": "localhost",
-  "server_port": "8080"
+  "server_port": "8080",
+  "google_client_id": "561876821532-jusvssgih5hebr5kqlr4n5j5p3fgpokd.apps.googleusercontent.com",
+  "aws_access_key_id": "AKIAVOAK3JUAWDOS2VUO",
+  "aws_secret_access_key": "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",
+  "aws_region": "us-east-2"
 }

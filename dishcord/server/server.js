@@ -10,7 +10,6 @@ app.use(cors({
 }));
 
 // User Profile Routes
-app.post('/users', routes.create_user);
 app.get('/users/:id', routes.get_user);
 app.put('/users/:id/name', routes.update_user_name);
 app.put('/users/:id/email', routes.update_user_email);
@@ -44,6 +43,9 @@ app.get('/top-influencers', routes.top_influencers);
 
 // Map Routes
 app.get('/map-restaurants', routes.map_restaurants);
+app.post('/auth/signup', routes.create_user_auth);
+app.post('/auth/login', routes.login_local);
+app.post('/auth/google', routes.login_google);
 
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)

@@ -279,36 +279,10 @@ const top_influencers = async function(req, res) {
 };
 
 
+
 /***********************
  * USER PROFILE ROUTES *
  ***********************/
-
-// Route: POST /users
-// Description: Creates a new Dishcord user
-const create_user = async function(req, res) {
-    const { name, email, password, city = null, state = null } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Missing required parameters: name, email, password' });
-    }
-
-    connection.query(
-      `
-      INSERT INTO users (name, email, password, city, state)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING user_id, name, email, city, state, time_created
-      `,
-      [name, email, password, city, state],
-      (err, data) => {
-        if (err) {
-          console.log(err);
-          res.status(500).json({});
-        } else {
-          res.json(data.rows[0]);
-        }
-      }
-    );
-  };
 
 // Route: GET /users/:id
 // Description: Retrieves all information about a user by their user_id
@@ -1269,7 +1243,20 @@ const axios = require("axios");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { parse } = require("url");
 
-const s3 = new S3Client({ region: "us-east-2" });
+// Initialize S3 client with credentials from config.json
+const s3Config = {
+  region: config.aws_region || "us-east-2"
+};
+
+// Add credentials if provided in config
+if (config.aws_access_key_id && config.aws_secret_access_key) {
+  s3Config.credentials = {
+    accessKeyId: config.aws_access_key_id,
+    secretAccessKey: config.aws_secret_access_key
+  };
+}
+
+const s3 = new S3Client(s3Config);
 
 // Route: GET /fetch-image
 // Description: Fetch a JPEG image from an AWS S3 URL (public or private) and return it
@@ -1316,9 +1303,194 @@ const fetch_image = async function(req, res) {
   }
 };
 
+/************************
+ * USER AUTH ROUTES   *
+ ************************/
+
+const bcrypt = require('bcrypt');
+const SALT_ROUNDS = 10;
+
+const create_user_auth = async function(req, res) {
+  const { name, email, password, city = null, state = null } = req.body;
+
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: 'name, email, and password are required' });
+  }
+
+  try {
+    const existing = await connection.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Email already in use' });
+    }
+
+    const userResult = await connection.query(
+      `INSERT INTO users (name, email, city, state)
+       VALUES ($1, $2, $3, $4)
+       RETURNING user_id, name, email, city, state`,
+      [name, email, city, state]
+    );
+    const user = userResult.rows[0];
+
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    await connection.query(
+      `INSERT INTO userauth (user_id, provider, provider_id, password_hash)
+       VALUES ($1, 'local', NULL, $2)`,
+      [user.user_id, hash]
+    );
+
+    return res.status(201).json({ user });
+
+  } catch (err) {
+    console.error('Error creating user:', err);
+    return res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+};
+
+// Route: POST /auth/login
+// Body: { email, password }
+const login_local = async function(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  try {
+    const userResult = await connection.query(
+      'SELECT user_id, name, email, city, state FROM users WHERE email = $1',
+      [email]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+    const user = userResult.rows[0];
+
+    const authResult = await connection.query(
+      `SELECT password_hash FROM userauth
+       WHERE user_id = $1 AND provider = 'local'`,
+      [user.user_id]
+    );
+
+    if (authResult.rows.length === 0) {
+      return res.status(401).json({ error: 'No local login registered for this account' });
+    }
+
+    const { password_hash } = authResult.rows[0];
+
+    const match = await bcrypt.compare(password, password_hash);
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    return res.status(200).json({ user });
+
+  } catch (err) {
+    console.error('Error in login_local:', err);
+    return res.status(500).json({ error: 'Internal server error', details: err.message });
+  }
+};
+
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(config.google_client_id);
+
+// Route: POST /auth/google
+// Body: { idToken }
+const login_google = async function(req, res) {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ error: 'idToken is required' });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: config.google_client_id
+    });
+    const payload = ticket.getPayload();
+
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = payload.name || email;
+
+    console.log('Google login attempt:', { email, name, googleId });
+
+    const authResult = await connection.query(
+      `SELECT user_id FROM userauth
+       WHERE provider = 'google' AND provider_id = $1`,
+      [googleId]
+    );
+
+    let user;
+
+    if (authResult.rows.length > 0) {
+      // Existing Google auth user
+      const userId = authResult.rows[0].user_id;
+      const userResult = await connection.query(
+        `SELECT user_id, name, email, city, state FROM users WHERE user_id = $1`,
+        [userId]
+      );
+      user = userResult.rows[0];
+    } else {
+      // New Google auth - check if user exists by email
+      const existingUserResult = await connection.query(
+        `SELECT user_id, name, email, city, state FROM users WHERE email = $1`,
+        [email]
+      );
+
+      if (existingUserResult.rows.length > 0) {
+        // User exists but no Google auth yet
+        user = existingUserResult.rows[0];
+      } else {
+        // Create new user
+        const newUserResult = await connection.query(
+          `INSERT INTO users (name, email, city, state)
+           VALUES ($1, $2, NULL, NULL)
+           RETURNING user_id, name, email, city, state`,
+          [name, email]
+        );
+        user = newUserResult.rows[0];
+      }
+
+      // Add Google auth entry - check first, then insert
+    
+      const checkAuth = await connection.query(
+        `SELECT user_id FROM userauth 
+         WHERE provider = 'google' AND provider_id = $1`,
+        [googleId]
+      );
+     
+
+      if (checkAuth.rows.length === 0) {
+        try {
+          const authInsertResult = await connection.query(
+            `INSERT INTO userauth (user_id, provider, provider_id, password_hash)
+             VALUES ($1, 'google', $2, NULL)`,
+            [user.user_id, googleId]
+          );
+        } catch (insertErr) {
+          throw insertErr;
+        }
+      } else {
+        console.log('STEP 3: Auth already exists, skipping insert');
+      }
+    }
+
+    return res.status(200).json({ user });
+
+  } catch (err) {
+    return res.status(500).json({ error: 'Google login failed', details: err.message });
+  }
+};
+
+
+
+
 
 module.exports = {
-    create_user,
     get_user,
     update_user_name,
     update_user_email,
@@ -1345,5 +1517,8 @@ module.exports = {
     michelin_engagement_stats,
     most_adventurous_user,
     top_influencers,
-    map_restaurants
+    map_restaurants,
+    create_user_auth,
+    login_local,
+    login_google
 };

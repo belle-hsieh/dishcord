@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -19,9 +19,29 @@ import RestaurantIcon from "@mui/icons-material/Restaurant";
 import MapIcon from "@mui/icons-material/Map";
 import PersonIcon from "@mui/icons-material/Person";
 
+import PhotoDisplay from "../components/PhotoDisplay";
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [citySearch, setCitySearch] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const user = localStorage.getItem("user");
+    const id = localStorage.getItem("userId");
+    setIsLoggedIn(!!user);
+    setUserId(id);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    setIsLoggedIn(false);
+    setUserId(null);
+    navigate("/");
+  };
 
   const handleCitySearch = (e) => {
     e.preventDefault();
@@ -49,12 +69,13 @@ export default function HomePage() {
       title: "User Profile",
       description: "Manage your favorites and visited restaurants",
       icon: <PersonIcon sx={{ fontSize: 40 }} />,
-      onClick: () => navigate("/user/1"), // TODO: Replace with actual user ID
+      onClick: () => navigate(userId ? `/user/${userId}` : "/user/1"),
       color: "#ed6c02",
     },
   ];
 
   return (
+    
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
       {/* Navigation Bar */}
       <AppBar position="static">
@@ -72,9 +93,18 @@ export default function HomePage() {
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
           </Button>
-          <Button color="inherit" onClick={() => navigate("/user/1")}>
+          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/user/1")}>
             Profile
           </Button>
+          {isLoggedIn ? (
+            <Button color="inherit" onClick={handleLogout}>
+              Log out
+            </Button>
+          ) : (
+            <Button color="inherit" onClick={() => navigate("/login")}>
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -172,6 +202,17 @@ export default function HomePage() {
           ))}
         </Grid>
 
+        {/* Photo Display Test Widget */}
+        <Paper elevation={3} sx={{ p: 4, mt: 4, mb: 4 }}>
+          <Typography variant="h5" component="h2" gutterBottom>
+            Photo Display Test
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Test loading an image from AWS S3
+          </Typography>
+          <PhotoDisplay />
+        </Paper>
+
         {/* Featured Section */}
         <Box sx={{ mt: 5 }}>
           <Typography variant="h5" component="h2" gutterBottom>
@@ -239,4 +280,5 @@ export default function HomePage() {
       </Container>
     </Box>
   );
+  
 }
