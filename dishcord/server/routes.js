@@ -924,7 +924,20 @@ const axios = require("axios");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { parse } = require("url");
 
-const s3 = new S3Client({ region: "us-east-2" });
+// Initialize S3 client with credentials from config.json
+const s3Config = {
+  region: config.aws_region || "us-east-2"
+};
+
+// Add credentials if provided in config
+if (config.aws_access_key_id && config.aws_secret_access_key) {
+  s3Config.credentials = {
+    accessKeyId: config.aws_access_key_id,
+    secretAccessKey: config.aws_secret_access_key
+  };
+}
+
+const s3 = new S3Client(s3Config);
 
 // Route: GET /fetch-image
 // Description: Fetch a JPEG image from an AWS S3 URL (public or private) and return it
