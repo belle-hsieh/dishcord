@@ -29,13 +29,20 @@ app.get('/nearby-restaurants', routes.nearby_restaurants);
 app.get('/michelin-vs-yelp-stats', routes.michelin_vs_yelp_stats);
 app.get('/restaurants-by-zip', routes.restaurants_by_zip);
 app.get('/michelin-yelp-rating-comparison', routes.michelin_yelp_rating_comparison);
-app.get('/hidden-gems/:city', routes.hidden_gems);
 app.get('/restaurant-ratings-over-time/:city', routes.restaurant_ratings_over_time);
 app.get('/cuisine-ratings/:city', routes.cuisine_ratings);
 app.get('/restaurant/:business_id', routes.get_restaurant);
 app.get('/photos/:business_id', routes.list_business_photos);
 app.get("/fetch-image", routes.fetch_image);
 
+// Complex Routes
+app.get('/michelin-engagement-stats', routes.michelin_engagement_stats);
+app.get('/hidden-gems/:city', routes.hidden_gems);
+app.get('/most-adventurous-user', routes.most_adventurous_user);
+app.get('/top-influencers', routes.top_influencers);
+
+// Map Routes
+app.get('/map-restaurants', routes.map_restaurants);
 app.post('/auth/signup', routes.create_user_auth);
 app.post('/auth/login', routes.login_local);
 app.post('/auth/google', routes.login_google);

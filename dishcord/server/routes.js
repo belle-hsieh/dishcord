@@ -20,6 +20,266 @@ const connection = new Pool({
 });
 connection.connect((err) => err && console.log(err));
 
+
+
+
+/************************
+ * LEADERBOARD ROUTES   *
+ ************************/
+
+// Route: GET /michelin-engagement-stats
+// Description: Compare customer engagement (photos/reviews ratio) between Michelin and non-Michelin restaurants
+const michelin_engagement_stats = async function(req, res) {
+  connection.query(
+    `
+    WITH photo_counts AS (
+      SELECT p.business_id, COUNT(p.photo_id) AS num_photos
+      FROM photos p
+      GROUP BY p.business_id
+    ),
+    review_counts AS (
+      SELECT r.business_id, COUNT(r.review_id) AS num_reviews
+      FROM yelpreviewinfo r
+      GROUP BY r.business_id
+    ),
+    joined AS (
+      SELECT
+        b.business_id,
+        b.name,
+        COALESCE(pc.num_photos, 0) AS num_photos,
+        COALESCE(rc.num_reviews, 0) AS num_reviews,
+        CASE
+          WHEN mri.name IS NOT NULL THEN 'Michelin'
+          ELSE 'Non-Michelin'
+        END AS michelin_status
+      FROM yelprestaurantinfo b
+      LEFT JOIN photo_counts pc ON b.business_id = pc.business_id
+      LEFT JOIN review_counts rc ON b.business_id = rc.business_id
+      LEFT JOIN michelinrestaurantinfo mri
+        ON LOWER(TRIM(b.name)) = LOWER(TRIM(mri.name))
+      LEFT JOIN michelinlocationinfo mli
+        ON mri.address = mli.address
+    )
+    SELECT
+      michelin_status,
+      AVG(
+        CASE
+          WHEN num_reviews > 0 THEN num_photos::decimal / num_reviews
+          ELSE 0
+        END
+      ) AS avg_photos_per_review,
+      COUNT(*) AS restaurant_count
+    FROM joined
+    GROUP BY michelin_status
+    `,
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
+
+// Route: GET /hidden-gems/:city
+// Description: Find underrated restaurants (high rating, low review count) vs peers in a city
+const hidden_gems = async function(req, res) {
+  const city = req.params.city;
+  const category = req.query.category || req.body.category;
+  
+  if (!city) {
+    return res.status(400).json({ error: 'Missing required parameter: city' });
+  }
+  
+  connection.query(
+    `
+    WITH group_restaurants AS (
+      SELECT
+        r.business_id,
+        r.name,
+        r.city,
+        r.stars AS yelp_stars,
+        r.review_count,
+        array_remove(array_agg(DISTINCT c.category), NULL) AS categories,
+        r.attributes ->> 'RestaurantsPriceRange2' AS price
+      FROM yelprestaurantinfo r
+      LEFT JOIN yelprestaurantcategories c
+        ON r.business_id = c.business_id
+      WHERE r.city = $1
+        AND (
+          $2 IS NULL
+          OR EXISTS (
+            SELECT 1
+            FROM yelprestaurantcategories c2
+            WHERE c2.business_id = r.business_id
+              AND LOWER(c2.category) LIKE '%' || LOWER($2) || '%'
+          )
+          )
+      GROUP BY r.business_id, r.name, r.city, r.stars, r.review_count, r.attributes
+    ),
+    peer_stats AS (
+        SELECT
+            AVG(yelp_stars) AS avg_rating,
+            AVG(review_count) AS avg_reviews
+        FROM group_restaurants
+    )
+    SELECT
+        g.business_id,
+        g.name,
+        g.yelp_stars,
+        g.review_count,
+        ps.avg_rating,
+        ps.avg_reviews,
+        CASE
+            WHEN g.yelp_stars > ps.avg_rating
+             AND g.review_count < ps.avg_reviews
+                THEN 'hidden_gem'
+            WHEN g.yelp_stars < ps.avg_rating
+             AND g.review_count > ps.avg_reviews
+                THEN 'overhyped'
+            ELSE 'typical'
+        END AS label
+    FROM group_restaurants g
+    JOIN peer_stats ps
+    ORDER BY label DESC, g.yelp_stars DESC
+    `,
+    [city, category],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
+
+// Route: GET /most-adventurous-user
+// Description: Find the user who has reviewed the highest number of distinct cuisines
+const most_adventurous_user = async function(req, res) {
+  connection.query(
+    `
+    WITH user_reviews AS (
+      SELECT
+        rv.user_id,
+        rv.business_id
+      FROM yelpreviewinfo rv
+    ),
+    user_cuisines AS (
+      SELECT
+        ur.user_id,
+        LOWER(TRIM(rc.category)) AS cuisine
+      FROM user_reviews ur
+      JOIN yelprestaurantcategories rc
+        ON ur.business_id = rc.business_id
+    ),
+    cleaned AS (
+      SELECT user_id, cuisine
+      FROM user_cuisines
+      WHERE cuisine IS NOT NULL AND cuisine <> ''
+    ),
+    cuisine_counts AS (
+      SELECT
+        user_id,
+        COUNT(DISTINCT cuisine) AS num_cuisines
+      FROM cleaned
+      GROUP BY user_id
+    )
+    SELECT
+      cc.user_id,
+      yi.name AS user_name,
+      cc.num_cuisines
+    FROM cuisine_counts cc
+    JOIN yelpuserinfo yi
+      ON cc.user_id = yi.user_id
+    WHERE cc.num_cuisines >= ALL (
+      SELECT num_cuisines
+      FROM cuisine_counts cc2
+      WHERE cc2.user_id <> cc.user_id
+    )
+    ORDER BY cc.num_cuisines DESC
+    LIMIT 1
+    `,
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json({});
+      } else {
+        res.json(data.rows[0] || {});
+      }
+    }
+  );
+};
+
+// Route: GET /top-influencers
+// Description: Find the most influential users based on reviews, reactions, and restaurant popularity
+const top_influencers = async function(req, res) {
+  const limit = req.query.limit || 20;
+
+  connection.query(
+    `
+    WITH user_reviews AS (
+      SELECT
+        rv.user_id,
+        rv.business_id,
+        rv.useful,
+        rv.funny,
+        rv.cool
+      FROM yelpreviewinfo rv
+    ),
+    restaurant_popularity AS (
+      SELECT
+        business_id,
+        review_count,
+        NTILE(100) OVER (ORDER BY review_count) AS popularity_percentile
+      FROM yelprestaurantinfo
+    ),
+    user_stats AS (
+      SELECT
+        ur.user_id,
+        COUNT(*) AS num_reviews,
+        AVG(ur.useful + ur.funny + ur.cool) AS avg_reactions,
+        AVG(rp.popularity_percentile) AS avg_restaurant_popularity
+      FROM user_reviews ur
+      JOIN restaurant_popularity rp
+        ON ur.business_id = rp.business_id
+      GROUP BY ur.user_id
+    ),
+    influence_scores AS (
+      SELECT
+        user_id,
+        (LN(num_reviews + 1)
+        + COALESCE(avg_reactions, 0)
+        + COALESCE(avg_restaurant_popularity / 20.0, 0)) AS influence_score
+      FROM user_stats
+    )
+    SELECT
+      u.user_id,
+      yi.name AS user_name,
+      u.influence_score
+    FROM influence_scores u
+    JOIN yelpuserinfo yi
+      ON yi.user_id = u.user_id
+    ORDER BY influence_score DESC
+    LIMIT $1
+    `,
+    [limit],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
+
+
+
 /***********************
  * USER PROFILE ROUTES *
  ***********************/
@@ -646,79 +906,7 @@ const michelin_yelp_rating_comparison = async function(req, res) {
   );
 };
 
-// Route: GET /hidden-gems/:city
-// Description: Find underrated restaurants (high rating, low review count) vs peers in a city
-const hidden_gems = async function(req, res) {
-  const city = req.params.city;
-  const category = req.query.category || req.body.category;
-  
-  if (!city) {
-    return res.status(400).json({ error: 'Missing required parameter: city' });
-  }
-  
-  connection.query(
-    `
-    WITH group_restaurants AS (
-      SELECT
-        r.business_id,
-        r.name,
-        r.city,
-        r.stars AS yelp_stars,
-        r.review_count,
-        array_remove(array_agg(DISTINCT c.category), NULL) AS categories,
-        r.attributes ->> 'RestaurantsPriceRange2' AS price
-      FROM yelprestaurantinfo r
-      LEFT JOIN yelprestaurantcategories c
-        ON r.business_id = c.business_id
-      WHERE r.city = $1
-        AND (
-          $2 IS NULL
-          OR EXISTS (
-            SELECT 1
-            FROM yelprestaurantcategories c2
-            WHERE c2.business_id = r.business_id
-              AND LOWER(c2.category) LIKE '%' || LOWER($2) || '%'
-          )
-          )
-      GROUP BY r.business_id, r.name, r.city, r.stars, r.review_count, r.attributes
-    ),
-    peer_stats AS (
-        SELECT
-            AVG(yelp_stars) AS avg_rating,
-            AVG(review_count) AS avg_reviews
-        FROM group_restaurants
-    )
-    SELECT
-        g.business_id,
-        g.name,
-        g.yelp_stars,
-        g.review_count,
-        ps.avg_rating,
-        ps.avg_reviews,
-        CASE
-            WHEN g.yelp_stars > ps.avg_rating
-             AND g.review_count < ps.avg_reviews
-                THEN 'hidden_gem'
-            WHEN g.yelp_stars < ps.avg_rating
-             AND g.review_count > ps.avg_reviews
-                THEN 'overhyped'
-            ELSE 'typical'
-        END AS label
-    FROM group_restaurants g
-    JOIN peer_stats ps
-    ORDER BY label DESC, g.yelp_stars DESC
-    `,
-    [city, category],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
+
 
 // Route: GET /restaurant-ratings-over-time/:city
 // Description: Track average restaurant ratings by year for a city
@@ -883,6 +1071,137 @@ const get_restaurant = async function(req, res) {
     }
   );
 };
+
+// MAP ROUTE
+
+
+// Route: GET /map-restaurants
+// Description: Get restaurants for map within certain radius of addy w/ rating status, photos, reviews, and categories
+const map_restaurants = async function(req, res) {
+  const user_lat = parseFloat(req.query.latitude);
+  const user_long = parseFloat(req.query.longitude);
+  const radius = parseFloat(req.query.radius) || 5; // Default 5 miles
+  
+  // Fail if invalid loc
+  if (isNaN(user_lat) || isNaN(user_long)) {
+    return res.status(400).json({ error: 'Missing or invalid latitude/longitude' });
+  }
+  
+  connection.query(`
+    WITH restaurant_base AS (
+      SELECT DISTINCT
+        r.business_id,
+        r.name,
+        r.address,
+        r.city,
+        r.state,
+        r.stars AS yelp_stars,
+        r.review_count,
+        l.latitude,
+        l.longitude,
+        r.postal_code,
+        (3959 * acos(
+           cos(radians($1)) * cos(radians(l.latitude)) *
+           cos(radians(l.longitude) - radians($2)) +
+           sin(radians($1)) * sin(radians(l.latitude))
+        )) AS distance
+      FROM yelprestaurantinfo r
+      JOIN yelplocationinfo l
+        ON r.address = l.address
+        AND r.city = l.city
+        AND r.state = l.state
+        AND r.postal_code = l.postal_code
+      WHERE 
+        l.latitude BETWEEN $1 - ($3 / 69.0) AND $1 + ($3 / 69.0)
+        AND l.longitude BETWEEN $2 - ($3 / (69.0 * cos(radians($1)))) AND $2 + ($3 / (69.0 * cos(radians($1))))
+    ),
+    filtered_restaurants AS (
+      SELECT * FROM restaurant_base
+      WHERE distance <= $3
+      LIMIT 100
+    ),
+    city_stats AS (
+      SELECT
+        city,
+        AVG(stars) AS avg_rating,
+        AVG(review_count) AS avg_reviews
+      FROM yelprestaurantinfo
+      WHERE city IN (SELECT DISTINCT city FROM filtered_restaurants)
+      GROUP BY city
+    ),
+    restaurants_with_status AS (
+      SELECT
+        fr.*,
+        CASE
+          WHEN fr.yelp_stars > cs.avg_rating AND fr.review_count < cs.avg_reviews THEN 'Hidden Gem'
+          WHEN fr.yelp_stars < cs.avg_rating AND fr.review_count > cs.avg_reviews THEN 'Overrated'
+          ELSE 'Typical'
+        END AS dishcord_status
+      FROM filtered_restaurants fr
+      JOIN city_stats cs ON fr.city = cs.city
+    ),
+    categories AS (
+      SELECT 
+        business_id, 
+        array_agg(DISTINCT category) AS categories
+      FROM yelprestaurantcategories
+      WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
+      GROUP BY business_id
+    ),
+    restaurant_photos AS (
+      SELECT 
+        p.business_id, 
+        json_agg(
+          json_build_object(
+            'photo_id', p.photo_id, 
+            'caption', p.caption, 
+            'label', p.label
+          )
+        ) AS photos
+      FROM (
+        SELECT DISTINCT ON (business_id, photo_id) * FROM yelpphotos 
+        WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
+      ) p
+      GROUP BY p.business_id
+    ),
+    restaurant_reviews AS (
+      SELECT 
+        r.business_id, 
+        json_agg(
+          json_build_object(
+            'review_id', r.review_id, 
+            'stars', r.stars, 
+            'text', r.text, 
+            'date', r.date
+          ) ORDER BY r.useful DESC
+        ) AS reviews
+      FROM (
+        SELECT DISTINCT ON (business_id, review_id) * FROM yelpreviewinfo 
+        WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
+      ) r
+      GROUP BY r.business_id
+    )
+    SELECT
+      rws.*,
+      COALESCE(cat.categories, ARRAY[]::text[]) AS categories,
+      COALESCE(rp.photos, '[]'::json) AS photos,
+      COALESCE(rr.reviews, '[]'::json) AS reviews
+    FROM restaurants_with_status rws
+    LEFT JOIN categories cat ON rws.business_id = cat.business_id
+    LEFT JOIN restaurant_photos rp ON rws.business_id = rp.business_id
+    LEFT JOIN restaurant_reviews rr ON rws.business_id = rr.business_id
+    ORDER BY rws.distance ASC
+  `, [user_lat, user_long, radius], (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json([]);
+    } else {
+      res.json(data.rows);
+    }
+  });
+};  
+  
+
 
 /************************
  * IMAGE URL ROUTE    *
@@ -1195,6 +1514,10 @@ module.exports = {
     get_restaurant,
     list_business_photos,
     fetch_image,
+    michelin_engagement_stats,
+    most_adventurous_user,
+    top_influencers,
+    map_restaurants,
     create_user_auth,
     login_local,
     login_google
