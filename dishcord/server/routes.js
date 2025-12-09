@@ -1149,21 +1149,23 @@ const map_restaurants = async function(req, res) {
       GROUP BY business_id
     ),
     restaurant_photos AS (
-      SELECT 
-        p.business_id, 
-        json_agg(
-          json_build_object(
-            'photo_id', p.photo_id, 
-            'caption', p.caption, 
-            'label', p.label
-          )
-        ) AS photos
-      FROM (
-        SELECT DISTINCT ON (business_id, photo_id) * FROM yelpphotos 
-        WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
-      ) p
-      GROUP BY p.business_id
-    ),
+    SELECT 
+      yp.business_id, 
+      json_agg(
+        json_build_object(
+          'photo_id', yp.photo_id, 
+          'caption', yp.caption, 
+          'label', yp.label,
+          'aws_url', yp.aws_url
+        )
+      ) AS photos
+    FROM (
+      SELECT DISTINCT ON (business_id, photo_id) * FROM yelpphotos 
+      WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
+    ) yp
+    WHERE yp.aws_url IS NOT NULL  -- Only include photos with URLs
+    GROUP BY yp.business_id
+  ),
     restaurant_reviews AS (
       SELECT 
         r.business_id, 
