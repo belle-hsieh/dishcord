@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import {
   Card,
@@ -16,30 +16,22 @@ import config from "../config.json";
 
 export default function RestaurantCard({ businessId }) {
   const [restaurant, setRestaurant] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [imageSrc, setImageSrc] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [imageSrc] = useState(null);
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
-  useEffect(() => {
-    if (!businessId) return;
-    setError("");
-    setLoading(true);
-    Promise.all([fetchRestaurant()]).finally(() => setLoading(false));
-  }, [businessId]);
-
-
-
-  const fetchRestaurant = async () => {
+  const fetchRestaurant = useCallback(async () => {
     try {
       const res = await axios.get(`${apiBase}/restaurant/${businessId}`);
       setRestaurant(res.data);
     } catch (err) {
       console.error("Failed to fetch restaurant", err);
-      setError("Unable to load restaurant details.");
     }
-  };
+  }, [businessId, apiBase]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    fetchRestaurant();
+  }, [businessId, fetchRestaurant]);
 
 
   if (!restaurant) {

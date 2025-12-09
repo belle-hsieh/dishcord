@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -12,6 +12,24 @@ import RestaurantIcon from "@mui/icons-material/Restaurant";
 
 export default function MapPage() {
   const navigate = useNavigate();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    // Check if user is logged in
+    const user = localStorage.getItem("user");
+    const id = localStorage.getItem("userId");
+    setIsLoggedIn(!!user);
+    setUserId(id);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    setIsLoggedIn(false);
+    setUserId(null);
+    navigate("/");
+  };
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
@@ -31,9 +49,18 @@ export default function MapPage() {
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
           </Button>
-          <Button color="inherit" onClick={() => navigate("/user/1")}>
+          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/user/1")}>
             Profile
           </Button>
+          {isLoggedIn ? (
+            <Button color="inherit" onClick={handleLogout}>
+              Log out
+            </Button>
+          ) : (
+            <Button color="inherit" onClick={() => navigate("/login")}>
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 

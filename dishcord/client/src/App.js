@@ -6,12 +6,14 @@ import CityProfilePage from "./pages/CityProfilePage";
 import MapPage from "./pages/MapPage";
 import RestaurantPage from "./pages/RestaurantPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import LoginPage from "./pages/LoginPage";
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/city/:cityName" element={<CityProfilePage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/restaurants" element={<RestaurantPage />} />
