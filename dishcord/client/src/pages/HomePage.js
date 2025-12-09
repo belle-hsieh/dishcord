@@ -199,7 +199,19 @@ export default function HomePage() {
               </Paper>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: 4,
+                  },
+                }}
+                onClick={() => navigate("/restaurants#michelin")}
+              >
                 <Typography variant="h6">Michelin Guide</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Discover Michelin-starred restaurants

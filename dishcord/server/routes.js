@@ -386,6 +386,7 @@ const michelin_yelp_matches = async function(req, res) {
   connection.query(
     `
     SELECT
+        yri.business_id,
         yri.name AS yelp_name,
         yri.address AS yelp_address,
         yri.city,
@@ -405,6 +406,7 @@ const michelin_yelp_matches = async function(req, res) {
     WHERE 
         ABS(mli.latitude  - yli.latitude)  < 0.0005
     AND ABS(mli.longitude - yli.longitude) < 0.0005
+    ORDER BY yelp_name ASC
     `,
     (err, data) => {
       if (err) {
@@ -429,6 +431,7 @@ const top_restaurants_by_city = async function(req, res) {
   connection.query(
     `
     SELECT
+        business_id,
         name,
         address,
         review_count,
