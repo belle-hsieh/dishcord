@@ -14,10 +14,13 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  Dialog,
+  IconButton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import RestaurantIcon from "@mui/icons-material/Restaurant";
+import CloseIcon from "@mui/icons-material/Close";
 import RestaurantCard from "../components/RestaurantCard";
 import config from "../config.json";
 
@@ -32,6 +35,8 @@ export default function RestaurantPage() {
   const [michelinPage, setMichelinPage] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
+  const [isCardOpen, setIsCardOpen] = useState(false);
 
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
@@ -62,9 +67,30 @@ export default function RestaurantPage() {
   }, [apiBase]);
 
   useEffect(() => {
-    if (id) return; // detail mode, skip lists
+    if (id) {
+      // If there's an ID in the URL, show the card
+      setSelectedRestaurantId(id);
+      setIsCardOpen(true);
+      return;
+    }
     fetchMichelin();
   }, [id, fetchMichelin]);
+
+  const handleRestaurantClick = (businessId) => {
+    if (businessId) {
+      setSelectedRestaurantId(businessId);
+      setIsCardOpen(true);
+      // Update URL without navigation
+      window.history.pushState({}, "", `/restaurant/${businessId}`);
+    }
+  };
+
+  const handleCloseCard = () => {
+    setIsCardOpen(false);
+    setSelectedRestaurantId(null);
+    // Update URL back to restaurant list
+    window.history.pushState({}, "", "/restaurant");
+  };
 
   useEffect(() => {
     // reset page when list changes
@@ -125,16 +151,6 @@ export default function RestaurantPage() {
     </AppBar>
   );
 
-  if (id) {
-    return (
-      <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-        {renderNav()}
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-          <RestaurantCard businessId={id} />
-        </Container>
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
@@ -172,7 +188,7 @@ export default function RestaurantPage() {
               {topRestaurants.map((r, idx) => (
                 <ListItemButton
                   key={idx}
-                  onClick={() => r.business_id && navigate(`/restaurant/${r.business_id}`)}
+                  onClick={() => handleRestaurantClick(r.business_id)}
                   disabled={!r.business_id}
                 >
                   <ListItemText
@@ -209,11 +225,11 @@ export default function RestaurantPage() {
           {michelinList.length > 0 ? (
             <List>
               {michelinList
-                .slice(michelinPage * 15, michelinPage * 15 + 15)
+                .slice(michelinPage * 7, michelinPage * 7 + 7)
                 .map((r, idx) => (
                   <ListItemButton
                     key={`${michelinPage}-${idx}`}
-                    onClick={() => r.business_id && navigate(`/restaurant/${r.business_id}`)}
+                    onClick={() => handleRestaurantClick(r.business_id)}
                     disabled={!r.business_id}
                   >
                     <ListItemText
@@ -241,7 +257,7 @@ export default function RestaurantPage() {
               No Michelin restaurants found yet.
             </Typography>
           )}
-          {michelinList.length > 15 && (
+          {michelinList.length > 7 && (
             <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center" justifyContent="flex-end">
               <Button
                 variant="outlined"
@@ -252,15 +268,15 @@ export default function RestaurantPage() {
                 Previous
               </Button>
               <Typography variant="body2" color="text.secondary">
-                Page {michelinPage + 1} / {Math.ceil(michelinList.length / 15)}
+                Page {michelinPage + 1} / {Math.ceil(michelinList.length / 7)}
               </Typography>
               <Button
                 variant="outlined"
                 size="small"
-                disabled={(michelinPage + 1) * 15 >= michelinList.length}
+                disabled={(michelinPage + 1) * 7 >= michelinList.length}
                 onClick={() =>
                   setMichelinPage((p) =>
-                    (p + 1) * 15 >= michelinList.length ? p : p + 1
+                    (p + 1) * 7 >= michelinList.length ? p : p + 1
                   )
                 }
               >
@@ -270,6 +286,41 @@ export default function RestaurantPage() {
           )}
         </Paper>
       </Container>
+
+      <Dialog
+        open={isCardOpen}
+        onClose={handleCloseCard}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            maxHeight: "90vh",
+            overflow: "auto",
+          },
+        }}
+      >
+        <Box sx={{ position: "relative" }}>
+          <IconButton
+            onClick={handleCloseCard}
+            sx={{
+              position: "absolute",
+              right: 8,
+              top: 8,
+              zIndex: 1,
+              bgcolor: "background.paper",
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {selectedRestaurantId && (
+            <RestaurantCard businessId={selectedRestaurantId} inDialog={true} />
+          )}
+        </Box>
+      </Dialog>
     </Box>
   );
 }
