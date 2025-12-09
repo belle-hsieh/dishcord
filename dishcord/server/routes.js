@@ -822,6 +822,92 @@ const cuisine_ratings = async function(req, res) {
   );
 };
 
+// Route: GET /restaurant/:business_id
+// Description: Get a single restaurant by business_id with all details including Michelin award, categories, and location
+const get_restaurant = async function(req, res) {
+  const businessId = req.params.business_id;
+
+  if (!businessId) {
+    return res.status(400).json({ error: "Missing required parameter: business_id" });
+  }
+
+  // Get restaurant info from Yelp data
+  connection.query(
+    `
+    SELECT 
+      r.*,
+      l.latitude,
+      l.longitude
+    FROM yelprestaurantinfo r
+    LEFT JOIN yelplocationinfo l
+      ON r.address = l.address
+      AND r.city = l.city
+      AND r.state = l.state
+      AND r.postal_code = l.postal_code
+    WHERE r.business_id = $1
+    `,
+    [businessId],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ error: "Failed to fetch restaurant" });
+      }
+      
+      if (data.rows.length === 0) {
+        return res.status(404).json({ error: "Restaurant not found" });
+      }
+
+      const restaurant = data.rows[0];
+
+      // Get Michelin award if applicable (optional)
+      connection.query(
+        `
+        SELECT DISTINCT mri.award
+        FROM michelinrestaurantinfo mri
+        JOIN michelinlocationinfo mli ON mri.address = mli.address
+        JOIN yelprestaurantinfo yri ON yri.name = mri.name
+        JOIN yelplocationinfo yli
+          ON yri.address = yli.address
+          AND yri.city = yli.city
+          AND yri.state = yli.state
+          AND yri.postal_code = yli.postal_code
+        WHERE yri.business_id = $1
+          AND ABS(mli.latitude - yli.latitude) < 0.0005
+          AND ABS(mli.longitude - yli.longitude) < 0.0005
+        LIMIT 1
+        `,
+        [businessId],
+        (err, michelinData) => {
+          if (!err && michelinData.rows.length > 0) {
+            restaurant.award = michelinData.rows[0].award;
+          }
+
+          // Get categories
+          connection.query(
+            `
+            SELECT DISTINCT TRIM(category) AS category
+            FROM yelprestaurantcategories
+            WHERE business_id = $1
+            ORDER BY category
+            `,
+            [businessId],
+            (err, catData) => {
+              if (err) {
+                console.log(err);
+                restaurant.categories = [];
+              } else {
+                restaurant.categories = catData.rows.map(row => row.category);
+              }
+
+              res.json(restaurant);
+            }
+          );
+        }
+      );
+    }
+  );
+};
+
 /************************
  * IMAGE URL ROUTE    *
  ************************/
@@ -932,6 +1018,7 @@ module.exports = {
     hidden_gems,
     restaurant_ratings_over_time,
     cuisine_ratings,
+    get_restaurant,
     list_business_photos,
     fetch_image
 };

@@ -179,7 +179,19 @@ export default function HomePage() {
           </Typography>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  textAlign: "center",
+                  cursor: "pointer",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                  "&:hover": {
+                    transform: "translateY(-2px)",
+                    boxShadow: 4,
+                  },
+                }}
+                onClick={() => navigate("/restaurants")}
+              >
                 <Typography variant="h6">Top Restaurants</Typography>
                 <Typography variant="body2" color="text.secondary">
                   Find the most reviewed restaurants in any city

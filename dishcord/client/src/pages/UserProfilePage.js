@@ -1,12 +1,44 @@
 import React from "react";
-import { useParams } from "react-router-dom";
-import { Container, Typography, Box } from "@mui/material";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Container,
+  Box,
+} from "@mui/material";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
 
 export default function UserProfilePage() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* Navigation Bar */}
+      <AppBar position="static">
+        <Toolbar>
+          <RestaurantIcon sx={{ mr: 2 }} />
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            Dishcord
+          </Typography>
+          <Button color="inherit" onClick={() => navigate("/")}>
+            Home
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/city/New York")}>
+            Cities
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/map")}>
+            Map
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/user/1")}>
+            Profile
+          </Button>
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
         User Profile
       </Typography>
@@ -18,6 +50,7 @@ export default function UserProfilePage() {
           User profile page - placeholder
         </Typography>
       </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
