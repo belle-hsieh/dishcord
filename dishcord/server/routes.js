@@ -83,11 +83,156 @@ const michelin_engagement_stats = async function(req, res) {
   );
 };
 
+// Route: GET /city-stats/:city/:state?
+// Description: Get statistics for a city, bridging Yelp and Michelin via Coordinates
+const city_stats = async function(req, res) {
+  const city = req.params.city;
+  const state = req.params.state; // Optional (might be null for Int'l cities)
+
+  if (!city) {
+    return res.status(400).json({ error: 'Missing required parameter: city' });
+  }
+
+  connection.query(
+    `
+    WITH city_restaurants AS (
+      -- 1. BASE: Get all Yelp restaurants in the requested city
+      -- We trust Yelp's structure (City field) to define the boundary
+      SELECT
+        r.business_id,
+        r.name,
+        r.stars,
+        r.review_count,
+        l.latitude,
+        l.longitude
+      FROM yelprestaurantinfo r
+      LEFT JOIN yelplocationinfo l 
+        ON r.address = l.address 
+        AND r.city = l.city 
+        AND r.state = l.state
+        AND r.postal_code = l.postal_code
+      WHERE r.city = $1
+        -- Handle State: If provided, filter by it. If not, ignore it.
+        AND ($2::VARCHAR IS NULL OR r.state = $2)
+    ),
+    michelin_matches AS (
+      -- 2. BRIDGE: Find Michelin matches using Fuzzy Logic
+      -- We do NOT match on City/Location strings. 
+      -- We match if Names look similar AND they are physically close (lat/long).
+      SELECT DISTINCT
+        cr.business_id,
+        mri.award
+      FROM city_restaurants cr
+      JOIN michelinrestaurantinfo mri 
+        ON LOWER(TRIM(cr.name)) = LOWER(TRIM(mri.name)) -- Case-insensitive Name Match with trim
+      JOIN michelinlocationinfo mli 
+        ON mri.address = mli.address
+      WHERE 
+        cr.latitude IS NOT NULL
+        AND cr.longitude IS NOT NULL
+        AND mli.latitude IS NOT NULL
+        AND mli.longitude IS NOT NULL
+        -- Coordinate Match: 0.0005 degrees is roughly 50 meters
+        AND ABS(mli.latitude - cr.latitude) < 0.0005
+        AND ABS(mli.longitude - cr.longitude) < 0.0005
+    ),
+    michelin_award_counts AS (
+      -- 3. AGGREGATE: Count awards (e.g., "2 Stars": 1)
+      SELECT
+        award,
+        COUNT(*) as count
+      FROM michelin_matches
+      GROUP BY award
+    )
+    SELECT
+      -- 4. FINAL OUTPUT
+      COALESCE(AVG(cr.stars), 0) AS avg_yelp_rating,
+      COUNT(cr.business_id) AS total_yelp_restaurants,
+      COALESCE((SELECT COUNT(DISTINCT business_id) FROM michelin_matches), 0) AS total_michelin_restaurants,
+      COALESCE(
+        (SELECT json_object_agg(award, count) FROM michelin_award_counts),
+        '{}'::json
+      ) AS michelin_breakdown
+    FROM city_restaurants cr
+    `,
+    [city, state || null],
+    (err, data) => {
+      if (err) {
+        console.error("City Stats Error:", err);
+        res.status(500).json({});
+      } else {
+        const result = data.rows[0];
+        // Handle case where city exists in DB but has no restaurants (returns 0s)
+        if (!result || result.total_yelp_restaurants === 0) {
+          return res.status(404).json({ 
+            error: 'City not found or has no restaurants',
+            avg_yelp_rating: 0, 
+            total_yelp_restaurants: 0, 
+             total_michelin_restaurants: 0, 
+             michelin_breakdown: {} 
+           });
+        } else {
+           res.json(result);
+        }
+      }
+    }
+  );
+};
+
+// Route: GET /city-top-restaurants/:city/:state?
+// Description: Get top restaurants in a city with optional filtering by rating and review count
+const city_top_restaurants = async function(req, res) {
+  const city = req.params.city;
+  const state = req.params.state;
+  const minRating = parseFloat(req.query.min_rating) || 0;
+  const minReviewCount = parseInt(req.query.min_review_count) || 0;
+  const limit = parseInt(req.query.limit) || 20;
+  
+  if (!city) {
+    return res.status(400).json({ error: 'Missing required parameter: city' });
+  }
+  
+  connection.query(
+    `
+    SELECT
+      r.business_id,
+      r.name,
+      r.address,
+      r.city,
+      r.state,
+      r.stars,
+      r.review_count,
+      mri.award
+    FROM yelprestaurantinfo r
+    LEFT JOIN michelinrestaurantinfo mri
+      ON LOWER(r.name) = LOWER(mri.name)
+    WHERE r.city = $1
+      AND ($2::VARCHAR IS NULL OR r.state = $2)
+      AND r.stars >= $3
+      AND r.review_count >= $4
+    ORDER BY r.stars DESC, r.review_count DESC
+    LIMIT $5
+    `,
+    [city, state || null, minRating, minReviewCount, limit],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
+
 // Route: GET /hidden-gems/:city
 // Description: Find underrated restaurants (high rating, low review count) vs peers in a city
 const hidden_gems = async function(req, res) {
   const city = req.params.city;
+  const state = req.query.state;
   const category = req.query.category || req.body.category;
+  const minRating = parseFloat(req.query.min_rating) || 0;
+  const maxReviewCount = parseInt(req.query.max_review_count) || 999999;
   
   if (!city) {
     return res.status(400).json({ error: 'Missing required parameter: city' });
@@ -101,23 +246,21 @@ const hidden_gems = async function(req, res) {
         r.name,
         r.city,
         r.stars AS yelp_stars,
-        r.review_count,
-        array_remove(array_agg(DISTINCT c.category), NULL) AS categories,
-        r.attributes ->> 'RestaurantsPriceRange2' AS price
+        r.review_count
       FROM yelprestaurantinfo r
-      LEFT JOIN yelprestaurantcategories c
-        ON r.business_id = c.business_id
       WHERE r.city = $1
+        AND ($2::VARCHAR IS NULL OR r.state = $2)
+        AND r.stars >= $3
+        AND r.review_count <= $4
         AND (
-          $2 IS NULL
+          $5::VARCHAR IS NULL
           OR EXISTS (
             SELECT 1
             FROM yelprestaurantcategories c2
             WHERE c2.business_id = r.business_id
-              AND LOWER(c2.category) LIKE '%' || LOWER($2) || '%'
+              AND LOWER(c2.category) LIKE '%' || LOWER($5::VARCHAR) || '%'
           )
-          )
-      GROUP BY r.business_id, r.name, r.city, r.stars, r.review_count, r.attributes
+        )
     ),
     peer_stats AS (
         SELECT
@@ -142,10 +285,10 @@ const hidden_gems = async function(req, res) {
             ELSE 'typical'
         END AS label
     FROM group_restaurants g
-    JOIN peer_stats ps
+    CROSS JOIN peer_stats ps
     ORDER BY label DESC, g.yelp_stars DESC
     `,
-    [city, category],
+    [city, state || null, minRating, maxReviewCount, category],
     (err, data) => {
       if (err) {
         console.log(err);
@@ -1661,6 +1804,8 @@ module.exports = {
     michelin_vs_yelp_stats,
     restaurants_by_zip,
     michelin_yelp_rating_comparison,
+    city_stats,
+    city_top_restaurants,
     hidden_gems,
     restaurant_ratings_over_time,
     cuisine_ratings,

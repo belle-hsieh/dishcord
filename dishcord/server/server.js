@@ -39,6 +39,8 @@ app.get("/fetch-image", routes.fetch_image);
 
 // Complex Routes
 app.get('/michelin-engagement-stats', routes.michelin_engagement_stats);
+app.get('/city-stats/:city/:state?', routes.city_stats);
+app.get('/city-top-restaurants/:city/:state?', routes.city_top_restaurants);
 app.get('/hidden-gems/:city', routes.hidden_gems);
 app.get('/most-adventurous-user', routes.most_adventurous_user);
 app.get('/top-influencers', routes.top_influencers);
