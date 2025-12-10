@@ -265,9 +265,6 @@ export default function UserProfilePage() {
                   <Typography variant="h4" component="h1" gutterBottom>
                     {user.name || "User"}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    User ID: {user.user_id}
-                  </Typography>
                 </Box>
               </Box>
 

@@ -103,6 +103,7 @@ export default function HomePage() {
               Login
             </Button>
           )}
+        
         </Toolbar>
       </AppBar>
 
@@ -123,8 +124,7 @@ export default function HomePage() {
             Welcome to Dishcord
           </Typography>
           <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
-            Discover the best restaurants, explore Michelin-starred dining, and
-            track your culinary adventures
+          Discover the real value of any restaurant with Dishcord’s blend of crowd opinion and culinary critics
           </Typography>
 
           {/* City Search */}

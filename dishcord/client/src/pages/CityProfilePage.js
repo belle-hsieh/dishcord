@@ -34,6 +34,7 @@ import StarIcon from "@mui/icons-material/Star";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import config from "../config.json";
+import PhotoDisplay from "../components/PhotoDisplay";
 
 export default function CityProfilePage() {
   const { cityName } = useParams();
@@ -291,9 +292,14 @@ export default function CityProfilePage() {
           <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
             {decodedCityName}
           </Typography>
-          <Typography variant="h6" color="text.secondary">
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
             Restaurant Profile & Statistics
           </Typography>
+          
+          {/* City Photo Gallery */}
+          <Paper elevation={2} sx={{ p: 2, mb: 3 }}>
+            <PhotoDisplay city={city} autoLoad={true} />
+          </Paper>
         </Box>
 
         {/* City Statistics Section */}

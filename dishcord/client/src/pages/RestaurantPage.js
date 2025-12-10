@@ -41,7 +41,6 @@ export default function RestaurantPage() {
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
   useEffect(() => {
-    // Check if user is logged in
     const user = localStorage.getItem("user");
     const id = localStorage.getItem("userId");
     setIsLoggedIn(!!user);
@@ -68,7 +67,7 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     if (id) {
-      // If there's an ID in the URL, show the full page
+
       return;
     }
     fetchMichelin();

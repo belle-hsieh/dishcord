@@ -44,7 +44,7 @@ export default function CityCard({ cityName }) {
 
   useEffect(() => {
     fetchCityPhoto();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [cityName]);
 
   const handleViewCity = () => {

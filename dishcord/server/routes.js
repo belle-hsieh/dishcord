@@ -1833,7 +1833,6 @@ const all_cities = async function(req, res) {
         console.log(err);
         res.status(500).json([]);
       } else {
-        // Extract just the city names into an array
         const cities = data.rows.map(row => row.city);
         res.json(cities);
       }
@@ -1842,9 +1841,13 @@ const all_cities = async function(req, res) {
 };
 
 // Route: GET /city-photo/:city
-// Description: Get a random photo from a restaurant in a given city
+// Description: Get random photos from restaurants in a given city
 const city_photo = async function(req, res) {
-  const city = req.params.city;
+  let city = req.params.city;
+  
+  if (city) {
+    city = decodeURIComponent(city);
+  }
 
   if (!city) {
     return res.status(400).json({ error: "Missing required parameter: city" });
@@ -1853,20 +1856,21 @@ const city_photo = async function(req, res) {
   connection.query(
     `
     SELECT p.aws_url
-    FROM photos p
+    FROM YelpPhotos p
     JOIN yelprestaurantinfo r ON p.business_id = r.business_id
     WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
       AND p.aws_url IS NOT NULL
     ORDER BY RANDOM()
-    LIMIT 1
+    LIMIT 12
     `,
     [city],
     (err, data) => {
       if (err) {
-        console.log(err);
-        return res.status(500).json({ error: "Failed to fetch photo" });
+        console.error("Error fetching city photos:", err);
+        return res.status(500).json({ error: "Failed to fetch photos" });
       } else if (data.rows && data.rows.length > 0) {
-        return res.json({ photo_url: data.rows[0].aws_url });
+        const photoUrls = data.rows.map(row => row.aws_url);
+        return res.json({ photo_urls: photoUrls });
       } else {
         return res.status(404).json({ error: "No photos found for this city" });
       }
