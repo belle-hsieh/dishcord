@@ -129,7 +129,7 @@ export default function MapPage() {
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
           </Button>
-          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/user/1")}>
+          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
             Profile
           </Button>
           {isLoggedIn ? (

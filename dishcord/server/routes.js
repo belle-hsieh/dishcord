@@ -1488,7 +1488,158 @@ const login_google = async function(req, res) {
   }
 };
 
+const crypto = require('crypto');
+const GITHUB_CLIENT_ID = config.github_client_id;
+const GITHUB_CLIENT_SECRET = config.github_client_secret;
+const FRONTEND_URL = config.frontend_url || 'http://localhost:3000';
 
+// Route: GET /auth/github/start
+// Description: Redirect user to GitHub OAuth consent screen
+const github_start = async function(req, res) {
+  try {
+    const state = crypto.randomBytes(16).toString('hex');
+    res.cookie('gh_oauth_state', state, {
+      httpOnly: true,
+      sameSite: 'lax',
+    });
+
+    const redirectUri = `https://github.com/login/oauth/authorize` +
+      `?client_id=${encodeURIComponent(GITHUB_CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent('http://localhost:8080/auth/github/callback')}` +
+      `&scope=${encodeURIComponent('read:user user:email')}` +
+      `&state=${encodeURIComponent(state)}`;
+
+    return res.redirect(redirectUri);
+  } catch (err) {
+    console.error('Error in github_start:', err);
+    return res.status(500).json({ error: 'Failed to start GitHub login' });
+  }
+};
+
+// Route: GET /auth/github/callback
+// Description: Handle GitHub OAuth callback, create/login user, then redirect to frontend
+const github_callback = async function(req, res) {
+  const { code, state } = req.query;
+
+  if (!code) {
+    return res.status(400).json({ error: 'Missing code from GitHub' });
+  }
+
+  try {
+    const cookieState = req.cookies?.gh_oauth_state;
+    if (!cookieState || cookieState !== state) {
+      console.warn('GitHub OAuth state mismatch');
+   }
+
+    const tokenRes = await axios.post(
+      'https://github.com/login/oauth/access_token',
+      {
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code,
+        redirect_uri: 'http://localhost:8080/auth/github/callback',
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+        },
+      }
+    );
+
+    const accessToken = tokenRes.data.access_token;
+    if (!accessToken) {
+      console.error('No access token from GitHub:', tokenRes.data);
+      return res.status(500).json({ error: 'Failed to get access token from GitHub' });
+    }
+
+    const userRes = await axios.get('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'User-Agent': 'dishcord-app',
+      },
+    });
+
+    const ghUser = userRes.data;
+    let email = ghUser.email;
+    const githubId = ghUser.id?.toString();
+    const name = ghUser.name || ghUser.login || email || 'GitHub User';
+
+    if (!email) {
+      const emailRes = await axios.get('https://api.github.com/user/emails', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'User-Agent': 'dishcord-app',
+        },
+      });
+
+      const emails = emailRes.data || [];
+      const primary = emails.find((e) => e.primary && e.verified) ||
+                      emails.find((e) => e.verified) ||
+                      emails[0];
+
+      if (primary && primary.email) {
+        email = primary.email;
+      }
+    }
+
+    if (!githubId) {
+      return res.status(500).json({ error: 'GitHub user ID missing' });
+    }
+
+    let user;
+
+    const authResult = await connection.query(
+      `SELECT user_id FROM userauth
+       WHERE provider = 'github' AND provider_id = $1`,
+      [githubId]
+    );
+
+    if (authResult.rows.length > 0) {
+      const userId = authResult.rows[0].user_id;
+      const userResult = await connection.query(
+        `SELECT user_id, name, email, city, state
+         FROM users
+         WHERE user_id = $1`,
+        [userId]
+      );
+      user = userResult.rows[0];
+    } else {
+      const existingUserResult = await connection.query(
+        `SELECT user_id, name, email, city, state
+         FROM users
+         WHERE email = $1`,
+        [email]
+      );
+
+      if (existingUserResult.rows.length > 0) {
+        user = existingUserResult.rows[0];
+      } else {
+        const newUserResult = await connection.query(
+          `INSERT INTO users (name, email, city, state)
+           VALUES ($1, $2, NULL, NULL)
+           RETURNING user_id, name, email, city, state`,
+          [name, email]
+        );
+        user = newUserResult.rows[0];
+      }
+
+      await connection.query(
+        `INSERT INTO userauth (user_id, provider, provider_id, password_hash)
+         VALUES ($1, 'github', $2, NULL)`,
+        [user.user_id, githubId]
+      );
+    }
+
+    const redirectUrl = `${FRONTEND_URL}/auth-complete?userId=${user.user_id}`;
+    return res.redirect(redirectUrl);
+
+  } catch (err) {
+    console.error('Error in github_callback:', err);
+    return res
+      .status(500)
+      .json({ error: 'GitHub login failed', details: err.message });
+  }
+};
 
 
 
@@ -1522,5 +1673,7 @@ module.exports = {
     map_restaurants,
     create_user_auth,
     login_local,
-    login_google
+    login_google,
+    github_start,
+    github_callback
 };

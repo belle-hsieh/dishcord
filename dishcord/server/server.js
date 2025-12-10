@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const config = require('./config');
 const routes = require('./routes');
+const cookieParser = require('cookie-parser');
 
 const app = express();
+app.use(cookieParser());
 app.use(express.json());
 app.use(cors({
   origin: '*',
@@ -43,9 +45,15 @@ app.get('/top-influencers', routes.top_influencers);
 
 // Map Routes
 app.get('/map-restaurants', routes.map_restaurants);
+
+// Google Oauth Routes
 app.post('/auth/signup', routes.create_user_auth);
 app.post('/auth/login', routes.login_local);
 app.post('/auth/google', routes.login_google);
+
+// Github Oauth Routes
+app.get('/auth/github/start', routes.github_start);
+app.get('/auth/github/callback', routes.github_callback);
 
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)

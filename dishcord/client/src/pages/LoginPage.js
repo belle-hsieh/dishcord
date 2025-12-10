@@ -28,6 +28,24 @@ export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  // Check if user is logged in
+  useEffect(() => {
+    const user = localStorage.getItem("user");
+    const id = localStorage.getItem("userId");
+    setIsLoggedIn(!!user);
+    setUserId(id);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    setIsLoggedIn(false);
+    setUserId(null);
+    navigate("/");
+  };
 
   /*******************************************
    * GOOGLE SIGN-IN CALLBACK
@@ -76,8 +94,7 @@ export default function LoginPage() {
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleSignIn,
         });
-
-        // Render the official Google button
+ 
         window.google.accounts.id.renderButton(
           document.getElementById("google-signin-button"),
           {
@@ -103,10 +120,14 @@ export default function LoginPage() {
    *******************************************/
   const handleGoogleButtonClick = () => {
     if (window.google && window.google.accounts) {
-      window.google.accounts.id.prompt(); // opens Google login popup
+      window.google.accounts.id.prompt();
     }
   };
 
+  const handleGithubLogin = () => {
+    window.location.href = "http://localhost:8080/auth/github/start";
+  };
+  
   /*******************************************
    * LOCAL LOGIN / SIGNUP
    *******************************************/
@@ -155,12 +176,30 @@ export default function LoginPage() {
       <AppBar position="static">
         <Toolbar>
           <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
             Home
           </Button>
+          <Button color="inherit" onClick={() => navigate("/city/New York")}>
+            Cities
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/map")}>
+            Map
+          </Button>
+          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
+            Profile
+          </Button>
+          {isLoggedIn ? (
+            <Button color="inherit" onClick={handleLogout}>
+              Log out
+            </Button>
+          ) : (
+            <Button color="inherit" onClick={() => navigate("/login")}>
+              Login
+            </Button>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -189,9 +228,19 @@ export default function LoginPage() {
           {/* GOOGLE LOGIN */}
           <Box sx={{ mb: 3 }}>
            
-            {/* Google automatically replaces this div with the real button */}
             <div id="google-signin-button"></div>
           </Box>
+
+          {/* GITHUB LOGIN */}
+          <Button
+            fullWidth
+            variant="outlined"
+            onClick={handleGithubLogin}
+            disabled={loading}
+            sx={{ mb: 2, py: 1.5 }}
+          >
+            {loading ? "Processing..." : "Continue with GitHub"}
+          </Button>
 
           <Divider sx={{ my: 3 }}>
             <Typography variant="body2" color="text.secondary">

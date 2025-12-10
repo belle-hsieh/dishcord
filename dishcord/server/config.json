@@ -9,5 +9,8 @@
   "google_client_id": "561876821532-jusvssgih5hebr5kqlr4n5j5p3fgpokd.apps.googleusercontent.com",
   "aws_access_key_id": "AKIAVOAK3JUAWDOS2VUO",
   "aws_secret_access_key": "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",
-  "aws_region": "us-east-2"
+  "aws_region": "us-east-2",
+  "frontend_url": "http://localhost:3000",
+  "github_client_id": "Ov23li6NZKvR1r7lEvEb",
+  "github_client_secret": "23cf7570ab4804a1af22d6f6c6904d30f7658208"
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -42,11 +42,11 @@ export default function UserProfilePage() {
   const [loadingVisited, setLoadingVisited] = useState(false);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
   const [isCardOpen, setIsCardOpen] = useState(false);
+  const previousUserIdRef = useRef(null);
 
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
   useEffect(() => {
-    // Check if user is logged in
     const checkLoginStatus = () => {
       const storedUser = localStorage.getItem("user");
       const storedId = localStorage.getItem("userId");
@@ -54,18 +54,22 @@ export default function UserProfilePage() {
       setIsLoggedIn(!!storedUser);
       setUserId(storedId);
       
-      // If user just logged out and was viewing their own profile, clear user data
-      if (wasLoggedIn && !storedUser && id && storedId && id === storedId.toString()) {
+
+      if (storedId) {
+        previousUserIdRef.current = storedId;
+      }
+      
+      if (wasLoggedIn && !storedUser && id && previousUserIdRef.current && id.toString() === previousUserIdRef.current.toString()) {
         setUser(null);
-      } else if (!storedUser && id && userId && id === userId.toString()) {
-        // User is logged out and viewing their own profile
+        previousUserIdRef.current = null;
+      } else if (!storedUser && id && previousUserIdRef.current && id.toString() === previousUserIdRef.current.toString()) {
         setUser(null);
+        previousUserIdRef.current = null;
       }
     };
     
     checkLoginStatus();
     
-    // Listen for storage changes (when logout happens on another tab/window)
     const handleStorageChange = () => {
       checkLoginStatus();
     };
@@ -75,17 +79,19 @@ export default function UserProfilePage() {
   }, [id, userId, isLoggedIn]);
 
   const handleLogout = () => {
-    const currentUserId = userId; // Store before clearing
+    const currentUserId = userId;
+    // Store the userId in ref BEFORE clearing, so fetchUser can check it
+    if (currentUserId) {
+      previousUserIdRef.current = currentUserId;
+    }
     localStorage.removeItem("user");
     localStorage.removeItem("userId");
     setIsLoggedIn(false);
     setUserId(null);
-    // Always clear user data when logging out (especially if viewing own profile)
     if (id && currentUserId && (id.toString() === currentUserId.toString() || id === currentUserId)) {
       setUser(null);
       setError("");
     }
-    // Small delay to ensure state updates before navigation
     setTimeout(() => {
       navigate("/");
     }, 0);
@@ -99,23 +105,25 @@ export default function UserProfilePage() {
         return;
       }
 
-      // Check if user is logged out and was viewing their own profile
       const storedId = localStorage.getItem("userId");
-      const wasOwnProfile = userId && id && (id.toString() === userId.toString() || id === userId);
       
-      if (!storedId && wasOwnProfile) {
-        // User logged out while viewing their own profile - don't fetch, clear data
+      // If logged out and viewing what was our own profile, don't fetch
+      if (!storedId && previousUserIdRef.current && id.toString() === previousUserIdRef.current.toString()) {
         setUser(null);
         setError("");
         setLoading(false);
         return;
       }
 
+      // Only fetch if we're logged in OR viewing someone else's profile
       try {
         setLoading(true);
         const res = await axios.get(`${apiBase}/users/${id}`);
         if (res.data && res.data.user_id) {
-          setUser(res.data);
+          // Don't set user if we're logged out and this was our own profile
+          if (storedId || res.data.user_id.toString() !== previousUserIdRef.current?.toString()) {
+            setUser(res.data);
+          }
         } else {
           setError("User not found");
         }
@@ -129,8 +137,6 @@ export default function UserProfilePage() {
 
     fetchUser();
   }, [id, apiBase, userId]);
-
-  // Fetch favorites and visited restaurants
   useEffect(() => {
     if (!id) return;
 
@@ -178,8 +184,6 @@ export default function UserProfilePage() {
 
   const handleFavoriteChange = (businessId, isAdded) => {
     if (isAdded) {
-      // If added, we'd need to refetch to get full restaurant data
-      // For now, just refetch favorites
       const fetchFavorites = async () => {
         try {
           const res = await axios.get(`${apiBase}/users/${id}/favorites`);
@@ -190,14 +194,12 @@ export default function UserProfilePage() {
       };
       fetchFavorites();
     } else {
-      // Remove from local state immediately
       setFavorites(prev => prev.filter(r => r.business_id !== businessId));
     }
   };
 
   const handleVisitedChange = (businessId, isAdded) => {
     if (isAdded) {
-      // If added, refetch to get full restaurant data
       const fetchVisited = async () => {
         try {
           const res = await axios.get(`${apiBase}/users/${id}/visited`);
@@ -208,7 +210,6 @@ export default function UserProfilePage() {
       };
       fetchVisited();
     } else {
-      // Remove from local state immediately
       setVisited(prev => prev.filter(r => r.business_id !== businessId));
     }
   };
@@ -231,7 +232,7 @@ export default function UserProfilePage() {
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
           </Button>
-          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/user/1")}>
+          <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
             Profile
           </Button>
           {isLoggedIn ? (
@@ -392,7 +393,21 @@ export default function UserProfilePage() {
             )}
           </Paper>
           </>
-        ) : null}
+        ) : (
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+              <PersonIcon sx={{ fontSize: 48, mr: 2, color: "text.secondary" }} />
+              <Box>
+                <Typography variant="h4" component="h1" gutterBottom>
+                  Guest
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Please log in to view your profile
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        )}
       </Container>
 
       <Dialog
