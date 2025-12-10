@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
 import CityProfilePage from "./pages/CityProfilePage";
+import ExploreCitiesPage from "./pages/ExploreCitiesPage";
 import MapPage from "./pages/MapPage";
 import RestaurantPage from "./pages/RestaurantPage";
 import UserProfilePage from "./pages/UserProfilePage";
@@ -15,6 +16,7 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/explore-cities" element={<ExploreCitiesPage />} />
         <Route path="/city/:cityName" element={<CityProfilePage />} />
         <Route path="/map" element={<MapPage />} />
         <Route path="/restaurants" element={<RestaurantPage />} />

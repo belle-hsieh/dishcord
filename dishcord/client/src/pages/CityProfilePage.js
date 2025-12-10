@@ -18,13 +18,16 @@ import {
   Alert,
   TextField,
   Stack,
-  Divider,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import RestaurantIcon from "@mui/icons-material/Restaurant";
 import StarIcon from "@mui/icons-material/Star";
@@ -49,6 +52,10 @@ export default function CityProfilePage() {
   const [minRating, setMinRating] = useState("");
   const [minReviewCount, setMinReviewCount] = useState("");
   const [maxReviewCountGems, setMaxReviewCountGems] = useState("100");
+  
+  // Dialog states
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
   const [minRatingGems, setMinRatingGems] = useState("4.0");
   
   const apiBase = `http://${config.server_host}:${config.server_port}`;
@@ -145,8 +152,14 @@ export default function CityProfilePage() {
     fetchCityData();
   };
 
-  const handleRestaurantClick = (businessId) => {
-    navigate(`/restaurant/${businessId}`);
+  const handleRestaurantClick = (restaurant) => {
+    setSelectedRestaurant(restaurant);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedRestaurant(null);
   };
 
   const formatMichelinBreakdown = (breakdown) => {
@@ -170,7 +183,7 @@ export default function CityProfilePage() {
             <Button color="inherit" onClick={() => navigate("/")}>
               Home
             </Button>
-            <Button color="inherit" onClick={() => navigate("/city/New York")}>
+            <Button color="inherit" onClick={() => navigate("/explore-cities")}>
               Cities
             </Button>
             <Button color="inherit" onClick={() => navigate("/map")}>
@@ -209,7 +222,7 @@ export default function CityProfilePage() {
             <Button color="inherit" onClick={() => navigate("/")}>
               Home
             </Button>
-            <Button color="inherit" onClick={() => navigate("/city/New York")}>
+            <Button color="inherit" onClick={() => navigate("/explore-cities")}>
               Cities
             </Button>
             <Button color="inherit" onClick={() => navigate("/map")}>
@@ -251,7 +264,7 @@ export default function CityProfilePage() {
           <Button color="inherit" onClick={() => navigate("/")}>
             Home
           </Button>
-          <Button color="inherit" onClick={() => navigate("/city/New York")}>
+          <Button color="inherit" onClick={() => navigate("/explore-cities")}>
             Cities
           </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>
@@ -437,7 +450,7 @@ export default function CityProfilePage() {
                         <Button
                           variant="outlined"
                           size="small"
-                          onClick={() => handleRestaurantClick(restaurant.business_id)}
+                          onClick={() => handleRestaurantClick(restaurant)}
                         >
                           View Restaurant
                         </Button>
@@ -548,6 +561,62 @@ export default function CityProfilePage() {
           </Grid>
         </Paper>
       </Container>
+
+      {/* Restaurant Details Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        {selectedRestaurant && (
+          <>
+            <DialogTitle>{selectedRestaurant.name}</DialogTitle>
+            <DialogContent sx={{ pt: 2 }}>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Address
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedRestaurant.address || "N/A"}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Rating
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <StarIcon sx={{ color: "#ffc107", fontSize: 20 }} />
+                    <Typography variant="body2">
+                      {selectedRestaurant.stars ? Number(selectedRestaurant.stars).toFixed(1) : "N/A"} / 5
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Reviews
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedRestaurant.review_count ? selectedRestaurant.review_count.toLocaleString() : 0} reviews
+                  </Typography>
+                </Box>
+                {selectedRestaurant.award && (
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      Michelin Award
+                    </Typography>
+                    <Chip 
+                      label={selectedRestaurant.award} 
+                      color="primary" 
+                      size="small"
+                      icon={<EmojiEventsIcon />}
+                    />
+                  </Box>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseDialog}>Close</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 }

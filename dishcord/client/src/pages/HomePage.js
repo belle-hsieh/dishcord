@@ -50,6 +50,13 @@ export default function HomePage() {
 
   const quickLinks = [
     {
+      title: "Explore Cities",
+      description: "Discover restaurants and statistics across cities",
+      icon: <RestaurantIcon sx={{ fontSize: 40 }} />,
+      onClick: () => navigate("/explore-cities"),
+      color: "#d32f2f",
+    },
+    {
       title: "View Map",
       description: "Find restaurants near you on an interactive map",
       icon: <MapIcon sx={{ fontSize: 40 }} />,
@@ -78,7 +85,7 @@ export default function HomePage() {
           <Button color="inherit" onClick={() => navigate("/")}>
             Home
           </Button>
-          <Button color="inherit" onClick={() => navigate("/city/New York")}>
+          <Button color="inherit" onClick={() => navigate("/explore-cities")}>
             Cities
           </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>

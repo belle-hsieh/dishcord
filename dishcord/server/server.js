@@ -36,6 +36,8 @@ app.get('/cuisine-ratings/:city', routes.cuisine_ratings);
 app.get('/restaurant/:business_id', routes.get_restaurant);
 app.get('/photos/:business_id', routes.list_business_photos);
 app.get("/fetch-image", routes.fetch_image);
+app.get('/all-cities', routes.all_cities);
+app.get('/city-photo/:city', routes.city_photo);
 
 // Complex Routes
 app.get('/michelin-engagement-stats', routes.michelin_engagement_stats);

@@ -111,9 +111,9 @@ const city_stats = async function(req, res) {
         AND r.city = l.city 
         AND r.state = l.state
         AND r.postal_code = l.postal_code
-      WHERE r.city = $1
-        -- Handle State: If provided, filter by it. If not, ignore it.
-        AND ($2::VARCHAR IS NULL OR r.state = $2)
+      WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
+          -- Handle State: If provided, filter by it. If not, ignore it.
+          AND ($2::VARCHAR IS NULL OR LOWER(TRIM(r.state)) = LOWER(TRIM($2)))
     ),
     michelin_matches AS (
       -- 2. BRIDGE: Find Michelin matches using Fuzzy Logic
@@ -1113,7 +1113,7 @@ const cuisine_ratings = async function(req, res) {
     FROM yelprestaurantinfo r
     JOIN yelprestaurantcategories c
       ON r.business_id = c.business_id
-    WHERE r.city = $1
+    WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
     GROUP BY TRIM(c.category)
     ORDER BY avg_rating DESC
     `,
@@ -1818,6 +1818,64 @@ const github_callback = async function(req, res) {
 
 
 
+// Route: GET /all-cities
+// Description: Get all distinct cities from YelpRestaurantInfo
+const all_cities = async function(req, res) {
+  connection.query(
+    `
+    SELECT DISTINCT LOWER(TRIM(city)) as city
+    FROM yelprestaurantinfo
+    WHERE city IS NOT NULL
+    ORDER BY city ASC
+    `,
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        // Extract just the city names into an array
+        const cities = data.rows.map(row => row.city);
+        res.json(cities);
+      }
+    }
+  );
+};
+
+// Route: GET /city-photo/:city
+// Description: Get a random photo from a restaurant in a given city
+const city_photo = async function(req, res) {
+  const city = req.params.city;
+
+  if (!city) {
+    return res.status(400).json({ error: "Missing required parameter: city" });
+  }
+
+  connection.query(
+    `
+    SELECT p.aws_url
+    FROM photos p
+    JOIN yelprestaurantinfo r ON p.business_id = r.business_id
+    WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
+      AND p.aws_url IS NOT NULL
+    ORDER BY RANDOM()
+    LIMIT 1
+    `,
+    [city],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ error: "Failed to fetch photo" });
+      } else if (data.rows && data.rows.length > 0) {
+        return res.json({ photo_url: data.rows[0].aws_url });
+      } else {
+        return res.status(404).json({ error: "No photos found for this city" });
+      }
+    }
+  );
+};
+
+
+
 module.exports = {
     get_user,
     update_user_name,
@@ -1848,6 +1906,8 @@ module.exports = {
     most_adventurous_user,
     top_influencers,
     map_restaurants,
+    all_cities,
+    city_photo,
     create_user_auth,
     login_local,
     login_google,
