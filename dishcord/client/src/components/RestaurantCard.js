@@ -10,6 +10,9 @@ import {
   Stack,
   Divider,
   Button,
+  CircularProgress,
+  Paper,
+  Rating,
 } from "@mui/material";
 import StarIcon from "@mui/icons-material/Star";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
@@ -17,15 +20,18 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import PhotoDisplay from "./PhotoDisplay";
+
 import config from "../config.json";
 
 export default function RestaurantCard({ businessId, inDialog = false, onFavoriteChange, onVisitedChange }) {
   const [restaurant, setRestaurant] = useState(null);
-  const [imageSrc] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isVisited, setIsVisited] = useState(false);
   const [userId, setUserId] = useState(null);
+  const [photos, setPhotos] = useState([]);
+  const [photoBlobs, setPhotoBlobs] = useState({});
+  const [loadingPhotos, setLoadingPhotos] = useState({});
+  const [showAllReviews, setShowAllReviews] = useState(false);
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
   const fetchRestaurant = useCallback(async () => {
@@ -45,6 +51,71 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
     const storedUserId = localStorage.getItem("userId");
     setUserId(storedUserId);
   }, [businessId, fetchRestaurant]);
+
+  // Fetch photos for the restaurant
+  useEffect(() => {
+    if (!businessId) return;
+
+    const fetchPhotos = async () => {
+      try {
+        const res = await axios.get(`${apiBase}/photos/${businessId}`);
+        const photoUrls = res.data || [];
+        // Convert URLs to photo objects (like RestaurantDetailDialog expects)
+        const photoObjects = photoUrls.slice(0, 6).map((awsUrl, idx) => ({
+          photo_id: idx, // Use index as photo_id since we only have URLs
+          aws_url: awsUrl,
+          label: null,
+          caption: null
+        }));
+        setPhotos(photoObjects);
+      } catch (err) {
+        console.error("Failed to fetch photos", err);
+        setPhotos([]);
+      }
+    };
+
+    fetchPhotos();
+  }, [businessId, apiBase]);
+
+  // Fetch image blobs for photos (same logic as RestaurantDetailDialog)
+  useEffect(() => {
+    if (photos.length === 0) return;
+
+    const fetchImageBlobs = async () => {
+      const photosToFetch = photos.slice(0, 6);
+      
+      for (const photo of photosToFetch) {
+        if (!photo.aws_url || photoBlobs[photo.photo_id]) continue;
+        
+        setLoadingPhotos(prev => ({ ...prev, [photo.photo_id]: true }));
+        
+        try {
+          const res = await axios.get(
+            `${apiBase}/fetch-image`,
+            {
+              params: { aws_url: photo.aws_url },
+              responseType: "blob"
+            }
+          );
+          const blobUrl = URL.createObjectURL(res.data);
+          setPhotoBlobs(prev => ({ ...prev, [photo.photo_id]: blobUrl }));
+        } catch (err) {
+          console.error(`Error loading photo ${photo.photo_id}:`, err);
+        } finally {
+          setLoadingPhotos(prev => ({ ...prev, [photo.photo_id]: false }));
+        }
+      }
+    };
+
+    fetchImageBlobs();
+
+    // Cleanup blob URLs on unmount
+    return () => {
+      Object.values(photoBlobs).forEach(url => {
+        if (url) URL.revokeObjectURL(url);
+      });
+    };
+  }, [photos, apiBase]);
 
   // Check if restaurant is in favorites and visited
   useEffect(() => {
@@ -145,15 +216,6 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
         borderColor: "divider"
       }}
     >
-      {imageSrc && (
-        <CardMedia
-          component="img"
-          height="320"
-          image={imageSrc}
-          alt={restaurant.name}
-          sx={{ objectFit: "cover" }}
-        />
-      )}
       <CardContent sx={{ p: inDialog ? 3 : 4 }}>
         <Stack spacing={2.5}>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
@@ -217,7 +279,89 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
             </Box>
           )}
 
-          <PhotoDisplay businessId={businessId} />
+          {photos.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
+                📸 Photos
+              </Typography>
+              <Box sx={{ display: "flex", gap: 2, overflowX: "auto", pb: 1 }}>
+                {photos.slice(0, 6).map((photo, idx) => (
+                  <Card key={idx} sx={{ minWidth: 200, maxWidth: 200, flexShrink: 0 }}>
+                    <CardMedia
+                      sx={{
+                        height: 140,
+                        bgcolor: "#f0f0f0",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative"
+                      }}
+                    >
+                      {loadingPhotos[photo.photo_id] && (
+                        <CircularProgress size={30} />
+                      )}
+                      {!loadingPhotos[photo.photo_id] && photoBlobs[photo.photo_id] && (
+                        <img
+                          src={photoBlobs[photo.photo_id]}
+                          alt={photo.label || "Restaurant photo"}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover"
+                          }}
+                        />
+                      )}
+                      {!loadingPhotos[photo.photo_id] && !photoBlobs[photo.photo_id] && (
+                        <Typography variant="caption" color="text.secondary">
+                          {photo.label || "Food"}
+                        </Typography>
+                      )}
+                    </CardMedia>
+                    {photo.caption && (
+                      <CardContent sx={{ p: 1 }}>
+                        <Typography variant="caption" noWrap title={photo.caption}>
+                          {photo.caption}
+                        </Typography>
+                      </CardContent>
+                    )}
+                  </Card>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {restaurant.reviews && restaurant.reviews.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight="bold">
+                💬 Reviews
+              </Typography>
+              {(showAllReviews ? restaurant.reviews : restaurant.reviews.slice(0, 2)).map((review, idx) => (
+                <Paper key={idx} elevation={1} sx={{ p: 2, mb: 2, bgcolor: "#f9f9f9" }}>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                    <Rating value={review.stars} readOnly size="small" />
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(review.date).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2">
+                    {review.text && review.text.length > 300
+                      ? `${review.text.substring(0, 300)}...`
+                      : review.text}
+                  </Typography>
+                </Paper>
+              ))}
+              {restaurant.reviews.length > 2 && (
+                <Button
+                  onClick={() => setShowAllReviews(!showAllReviews)}
+                  variant="outlined"
+                  size="small"
+                  sx={{ mt: 1 }}
+                >
+                  {showAllReviews ? "View Less" : `View More (${restaurant.reviews.length - 2} more)`}
+                </Button>
+              )}
+            </Box>
+          )}
 
           <Divider sx={{ my: 1 }} />
 

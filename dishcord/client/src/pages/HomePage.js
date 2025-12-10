@@ -19,8 +19,6 @@ import RestaurantIcon from "@mui/icons-material/Restaurant";
 import MapIcon from "@mui/icons-material/Map";
 import PersonIcon from "@mui/icons-material/Person";
 
-import PhotoDisplay from "../components/PhotoDisplay";
-
 export default function HomePage() {
   const navigate = useNavigate();
   const [citySearch, setCitySearch] = useState("");
@@ -201,17 +199,6 @@ export default function HomePage() {
             </Grid>
           ))}
         </Grid>
-
-        {/* Photo Display Test Widget */}
-        <Paper elevation={3} sx={{ p: 4, mt: 4, mb: 4 }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Photo Display Test
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Test loading an image from AWS S3
-          </Typography>
-          <PhotoDisplay />
-        </Paper>
 
         {/* Featured Section */}
         <Box sx={{ mt: 5 }}>

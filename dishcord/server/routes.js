@@ -1063,7 +1063,37 @@ const get_restaurant = async function(req, res) {
                 restaurant.categories = catData.rows.map(row => row.category);
               }
 
-              res.json(restaurant);
+              // Get reviews (top 10 by usefulness)
+              connection.query(
+                `
+                SELECT DISTINCT ON (review_id)
+                  review_id,
+                  stars,
+                  text,
+                  date,
+                  useful
+                FROM yelpreviewinfo
+                WHERE business_id = $1
+                ORDER BY review_id, useful DESC
+                LIMIT 10
+                `,
+                [businessId],
+                (err, reviewData) => {
+                  if (err) {
+                    console.log(err);
+                    restaurant.reviews = [];
+                  } else {
+                    restaurant.reviews = reviewData.rows.map(row => ({
+                      review_id: row.review_id,
+                      stars: row.stars,
+                      text: row.text,
+                      date: row.date
+                    }));
+                  }
+
+                  res.json(restaurant);
+                }
+              );
             }
           );
         }
@@ -1221,9 +1251,11 @@ const list_business_photos = async function(req, res) {
   connection.query(
     `
     SELECT aws_url
-    FROM photos
+    FROM yelpphotos
     WHERE business_id = $1
+      AND aws_url IS NOT NULL
     ORDER BY photo_id
+    LIMIT 10
     `,
     [businessId],
     (err, data) => {

@@ -20,8 +20,8 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
 import RestaurantIcon from "@mui/icons-material/Restaurant";
-import CloseIcon from "@mui/icons-material/Close";
 import RestaurantCard from "../components/RestaurantCard";
+import RestaurantDetailDialog from "../components/RestaurantDetailDialog";
 import config from "../config.json";
 
 export default function RestaurantPage() {
@@ -35,8 +35,8 @@ export default function RestaurantPage() {
   const [michelinPage, setMichelinPage] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
-  const [isCardOpen, setIsCardOpen] = useState(false);
+  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const apiBase = `http://${config.server_host}:${config.server_port}`;
 
@@ -68,28 +68,47 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     if (id) {
-      // If there's an ID in the URL, show the card
-      setSelectedRestaurantId(id);
-      setIsCardOpen(true);
+      // If there's an ID in the URL, show the full page
       return;
     }
     fetchMichelin();
   }, [id, fetchMichelin]);
 
-  const handleRestaurantClick = (businessId) => {
-    if (businessId) {
-      setSelectedRestaurantId(businessId);
-      setIsCardOpen(true);
-      // Update URL without navigation
-      window.history.pushState({}, "", `/restaurant/${businessId}`);
+  const fetchRestaurantById = useCallback(async (businessId) => {
+    try {
+      const res = await axios.get(`${apiBase}/restaurant/${businessId}`);
+      const restaurant = res.data;
+      // Map stars to yelp_stars for compatibility with RestaurantDetailDialog
+      if (restaurant.stars && !restaurant.yelp_stars) {
+        restaurant.yelp_stars = restaurant.stars;
+      }
+      return restaurant;
+    } catch (err) {
+      console.error("Failed to fetch restaurant", err);
+      return null;
+    }
+  }, [apiBase]);
+
+  const handleRestaurantClick = async (businessId) => {
+    if (!businessId) return;
+    
+    const restaurant = await fetchRestaurantById(businessId);
+    if (restaurant) {
+      setSelectedRestaurant(restaurant);
+      setIsDialogOpen(true);
     }
   };
 
-  const handleCloseCard = () => {
-    setIsCardOpen(false);
-    setSelectedRestaurantId(null);
-    // Update URL back to restaurant list
-    window.history.pushState({}, "", "/restaurant");
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setSelectedRestaurant(null);
+  };
+
+  const handleViewFullPage = () => {
+    if (selectedRestaurant?.business_id) {
+      setIsDialogOpen(false);
+      navigate(`/restaurant/${selectedRestaurant.business_id}`);
+    }
   };
 
   useEffect(() => {
@@ -151,6 +170,17 @@ export default function RestaurantPage() {
     </AppBar>
   );
 
+  // If there's an ID, show the full restaurant detail page
+  if (id) {
+    return (
+      <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+        {renderNav()}
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          <RestaurantCard businessId={id} />
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
@@ -287,40 +317,12 @@ export default function RestaurantPage() {
         </Paper>
       </Container>
 
-      <Dialog
-        open={isCardOpen}
-        onClose={handleCloseCard}
-        maxWidth="md"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            maxHeight: "90vh",
-            overflow: "auto",
-          },
-        }}
-      >
-        <Box sx={{ position: "relative" }}>
-          <IconButton
-            onClick={handleCloseCard}
-            sx={{
-              position: "absolute",
-              right: 8,
-              top: 8,
-              zIndex: 1,
-              bgcolor: "background.paper",
-              "&:hover": {
-                bgcolor: "action.hover",
-              },
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
-          {selectedRestaurantId && (
-            <RestaurantCard businessId={selectedRestaurantId} inDialog={true} />
-          )}
-        </Box>
-      </Dialog>
+      <RestaurantDetailDialog
+        open={isDialogOpen}
+        restaurant={selectedRestaurant}
+        onClose={handleCloseDialog}
+        onViewRestaurant={handleViewFullPage}
+      />
     </Box>
   );
 }

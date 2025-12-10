@@ -103,23 +103,25 @@ export default function RestaurantDetailDialog({
       </DialogTitle>
 
       <DialogContent sx={{ pt: '40px !important', px: 3, pb: 3 }}>
-        <Box sx={{ mb: 3, textAlign: "center" }}>
-          <Chip
-            label={`🎯 ${restaurant.dishcord_status}`}
-            sx={{
-              ...getStatusBadge(restaurant.dishcord_status),
-              fontSize: "1.1rem",
-              py: 2.5,
-              px: 2,
-              fontWeight: "bold"
-            }}
-          />
-          <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
-            {getStatusDescription(restaurant.dishcord_status)}
-          </Typography>
-        </Box>
+        {restaurant.dishcord_status && (
+          <Box sx={{ mb: 3, textAlign: "center" }}>
+            <Chip
+              label={`🎯 ${restaurant.dishcord_status}`}
+              sx={{
+                ...getStatusBadge(restaurant.dishcord_status),
+                fontSize: "1.1rem",
+                py: 2.5,
+                px: 2,
+                fontWeight: "bold"
+              }}
+            />
+            <Typography variant="body2" sx={{ mt: 1, color: "text.secondary" }}>
+              {getStatusDescription(restaurant.dishcord_status)}
+            </Typography>
+          </Box>
+        )}
 
-        <Divider sx={{ mb: 3 }} />
+        {restaurant.dishcord_status && <Divider sx={{ mb: 3 }} />}
 
         <Box sx={{ display: "flex", gap: 3, mb: 3, justifyContent: "center", flexWrap: "wrap" }}>
           <Box sx={{ textAlign: "center" }}>
