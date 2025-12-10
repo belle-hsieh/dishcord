@@ -136,8 +136,10 @@ export default function CityProfilePage() {
   }, [apiBase, city, state, minRating, minReviewCount, minRatingGems, maxReviewCountGems]);
 
   useEffect(() => {
+    // Only fetch data on initial mount or when city/state changes
     fetchCityData();
-  }, [fetchCityData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [city, state]);
 
   const handleApplyFilters = () => {
     fetchCityData();
