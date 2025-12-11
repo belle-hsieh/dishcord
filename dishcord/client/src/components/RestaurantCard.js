@@ -264,7 +264,33 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
                 : 0}{" "}
               reviews
             </Typography>
-            {restaurant.award && (
+            {restaurant.michelin && (
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                <Chip
+                  label={`⭐ ${restaurant.michelin.award}`}
+                  color="primary"
+                  size="medium"
+                  sx={{ fontWeight: 600 }}
+                />
+                {restaurant.michelin.price && (
+                  <Chip
+                    label={restaurant.michelin.price}
+                    variant="outlined"
+                    size="medium"
+                    sx={{ fontWeight: 500 }}
+                  />
+                )}
+                {restaurant.michelin.greenStar && (
+                  <Chip
+                    label="🌿 Green Star"
+                    color="success"
+                    size="medium"
+                    sx={{ fontWeight: 600 }}
+                  />
+                )}
+              </Box>
+            )}
+            {restaurant.award && !restaurant.michelin && (
               <Chip
                 label={`Michelin ${restaurant.award}`}
                 color="primary"
@@ -273,6 +299,14 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
               />
             )}
           </Box>
+
+          {restaurant.michelin && restaurant.michelin.description && (
+            <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 2, my: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                "{restaurant.michelin.description}"
+              </Typography>
+            </Box>
+          )}
 
           {restaurant.categories && restaurant.categories.length > 0 && (
             <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", py: 1 }}>

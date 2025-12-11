@@ -18,6 +18,7 @@ import {
   Grid,
   Pagination,
   CircularProgress,
+  Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
@@ -326,9 +327,47 @@ export default function RestaurantPage() {
                     key={`${michelinPage}-${idx}`}
                     onClick={() => handleRestaurantClick(r.business_id)}
                     disabled={!r.business_id}
+                    sx={{
+                      mb: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      p: 2,
+                      "&:hover": {
+                        bgcolor: "action.hover"
+                      }
+                    }}
                   >
                     <ListItemText
-                      primary={r.yelp_name || r.name}
+                      primary={
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+                          <Typography variant="h6" fontWeight="bold">
+                            {r.yelp_name || r.name}
+                          </Typography>
+                          {r.award && (
+                            <Chip
+                              label={`⭐ ${r.award}`}
+                              color="primary"
+                              size="small"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          )}
+                          {r.price && (
+                            <Chip
+                              label={`Price: ${r.price}`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                          {r.greenStar && (
+                            <Chip
+                              label="🌿 Green Star"
+                              color="success"
+                              size="small"
+                            />
+                          )}
+                        </Box>
+                      }
                       secondary={
                         <Box>
                           <Typography variant="body2" color="text.secondary">
@@ -337,10 +376,14 @@ export default function RestaurantPage() {
                           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                             <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
                             <Typography variant="body2" color="text.secondary">
-                              {r.stars ? Number(r.stars).toFixed(1) : "N/A"} • Michelin{" "}
-                              {r.award || "selected"}
+                              {r.stars ? Number(r.stars).toFixed(1) : "N/A"} ({r.review_count || 0} reviews)
                             </Typography>
                           </Stack>
+                          {r.michelinDescription && (
+                            <Typography variant="caption" sx={{ mt: 1, display: "block", fontStyle: "italic", color: "text.secondary" }}>
+                              "{r.michelinDescription}"
+                            </Typography>
+                          )}
                         </Box>
                       }
                     />

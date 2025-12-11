@@ -763,7 +763,7 @@ const list_visited = async function(req, res) {
  ************************/
 
 // Route: GET /michelin-yelp-matches
-// Description: Get matched Michelin and Yelp restaurants with proximity check
+// Description: Get matched Michelin and Yelp restaurants with all Michelin details
 const michelin_yelp_matches = async function(req, res) {
   connection.query(
     `
@@ -774,7 +774,11 @@ const michelin_yelp_matches = async function(req, res) {
         yri.city,
         yri.state,
         yri.stars,
-        mri.award
+        yri.review_count,
+        mri.award,
+        mri.price,
+        mri.greenstar,
+        mri.description AS michelinDescription
   FROM michelinrestaurantinfo mri
   JOIN michelinlocationinfo mli
         ON mri.address = mli.address
@@ -1210,10 +1214,14 @@ const get_restaurant = async function(req, res) {
 
       const restaurant = data.rows[0];
 
-      // Get Michelin award if applicable (optional)
+      // Get Michelin data if applicable (optional)
       connection.query(
         `
-        SELECT DISTINCT mri.award
+        SELECT DISTINCT 
+          mri.award,
+          mri.price,
+          mri.greenstar,
+          mri.description
         FROM michelinrestaurantinfo mri
         JOIN michelinlocationinfo mli ON mri.address = mli.address
         JOIN yelprestaurantinfo yri ON yri.name = mri.name
@@ -1230,7 +1238,13 @@ const get_restaurant = async function(req, res) {
         [businessId],
         (err, michelinData) => {
           if (!err && michelinData.rows.length > 0) {
-            restaurant.award = michelinData.rows[0].award;
+            const michelin = michelinData.rows[0];
+            restaurant.michelin = {
+              award: michelin.award,
+              price: michelin.price,
+              greenStar: michelin.greenstar,
+              description: michelin.description
+            };
           }
 
           // Get categories
@@ -1399,16 +1413,39 @@ const map_restaurants = async function(req, res) {
         WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
       ) r
       GROUP BY r.business_id
+    ),
+    michelin_data AS (
+      SELECT
+        yri.business_id,
+        json_build_object(
+          'award', mri.award,
+          'price', mri.price,
+          'greenStar', mri.greenstar,
+          'description', mri.description
+        ) AS michelin
+      FROM michelinrestaurantinfo mri
+      JOIN michelinlocationinfo mli ON mri.address = mli.address
+      JOIN yelprestaurantinfo yri ON LOWER(TRIM(yri.name)) = LOWER(TRIM(mri.name))
+      JOIN yelplocationinfo yli
+        ON yri.address = yli.address
+        AND yri.city = yli.city
+        AND yri.state = yli.state
+        AND yri.postal_code = yli.postal_code
+      WHERE ABS(mli.latitude - yli.latitude) < 0.0005
+        AND ABS(mli.longitude - yli.longitude) < 0.0005
+        AND yri.business_id IN (SELECT business_id FROM restaurants_with_status)
     )
     SELECT
       rws.*,
       COALESCE(cat.categories, ARRAY[]::text[]) AS categories,
       COALESCE(rp.photos, '[]'::json) AS photos,
-      COALESCE(rr.reviews, '[]'::json) AS reviews
+      COALESCE(rr.reviews, '[]'::json) AS reviews,
+      md.michelin
     FROM restaurants_with_status rws
     LEFT JOIN categories cat ON rws.business_id = cat.business_id
     LEFT JOIN restaurant_photos rp ON rws.business_id = rp.business_id
     LEFT JOIN restaurant_reviews rr ON rws.business_id = rr.business_id
+    LEFT JOIN michelin_data md ON rws.business_id = md.business_id
     ORDER BY rws.distance ASC
   `, [user_lat, user_long, radius], (err, data) => {
     if (err) {

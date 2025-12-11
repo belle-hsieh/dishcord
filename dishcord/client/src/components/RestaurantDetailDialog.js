@@ -121,6 +121,36 @@ export default function RestaurantDetailDialog({
           </Box>
         )}
 
+        {restaurant.michelin && (
+          <Box sx={{ mb: 3, p: 2, bgcolor: "#FFF3E0", borderRadius: 2, border: "2px solid #FFB300" }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap", mb: 1 }}>
+              <Typography variant="h6" fontWeight="bold" sx={{ color: "#F57C00" }}>
+                ⭐ Michelin: {restaurant.michelin.award}
+              </Typography>
+              {restaurant.michelin.price && (
+                <Chip
+                  label={`Price: ${restaurant.michelin.price}`}
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
+              )}
+              {restaurant.michelin.greenStar && (
+                <Chip
+                  label="🌿 Green Star"
+                  color="success"
+                  size="small"
+                  sx={{ fontWeight: 600 }}
+                />
+              )}
+            </Box>
+            {restaurant.michelin.description && (
+              <Typography variant="body2" sx={{ fontStyle: "italic", mt: 1 }}>
+                "{restaurant.michelin.description}"
+              </Typography>
+            )}
+          </Box>
+        )}
+
         {restaurant.dishcord_status && <Divider sx={{ mb: 3 }} />}
 
         <Box sx={{ display: "flex", gap: 3, mb: 3, justifyContent: "center", flexWrap: "wrap" }}>
