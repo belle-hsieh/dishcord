@@ -116,7 +116,7 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
         if (url) URL.revokeObjectURL(url);
       });
     };
-  }, [photos, apiBase]);
+  }, [photos, apiBase, photoBlobs]);
 
   // Check if restaurant is in favorites and visited
   useEffect(() => {

@@ -96,8 +96,6 @@ const city_stats = async function(req, res) {
   connection.query(
     `
     WITH city_restaurants AS (
-      -- 1. BASE: Get all Yelp restaurants in the requested city
-      -- We trust Yelp's structure (City field) to define the boundary
       SELECT
         r.business_id,
         r.name,
@@ -112,19 +110,15 @@ const city_stats = async function(req, res) {
         AND r.state = l.state
         AND r.postal_code = l.postal_code
       WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
-          -- Handle State: If provided, filter by it. If not, ignore it.
           AND ($2::VARCHAR IS NULL OR LOWER(TRIM(r.state)) = LOWER(TRIM($2)))
     ),
     michelin_matches AS (
-      -- 2. BRIDGE: Find Michelin matches using Fuzzy Logic
-      -- We do NOT match on City/Location strings. 
-      -- We match if Names look similar AND they are physically close (lat/long).
       SELECT DISTINCT
         cr.business_id,
         mri.award
       FROM city_restaurants cr
       JOIN michelinrestaurantinfo mri 
-        ON LOWER(TRIM(cr.name)) = LOWER(TRIM(mri.name)) -- Case-insensitive Name Match with trim
+        ON LOWER(TRIM(cr.name)) = LOWER(TRIM(mri.name))
       JOIN michelinlocationinfo mli 
         ON mri.address = mli.address
       WHERE 
@@ -132,12 +126,10 @@ const city_stats = async function(req, res) {
         AND cr.longitude IS NOT NULL
         AND mli.latitude IS NOT NULL
         AND mli.longitude IS NOT NULL
-        -- Coordinate Match: 0.0005 degrees is roughly 50 meters
         AND ABS(mli.latitude - cr.latitude) < 0.0005
         AND ABS(mli.longitude - cr.longitude) < 0.0005
     ),
     michelin_award_counts AS (
-      -- 3. AGGREGATE: Count awards (e.g., "2 Stars": 1)
       SELECT
         award,
         COUNT(*) as count
@@ -145,7 +137,6 @@ const city_stats = async function(req, res) {
       GROUP BY award
     )
     SELECT
-      -- 4. FINAL OUTPUT
       COALESCE(AVG(cr.stars), 0) AS avg_yelp_rating,
       COUNT(cr.business_id) AS total_yelp_restaurants,
       COALESCE((SELECT COUNT(DISTINCT business_id) FROM michelin_matches), 0) AS total_michelin_restaurants,
@@ -805,6 +796,8 @@ const michelin_yelp_matches = async function(req, res) {
   );
 };
 
+/* UNUSED / LEGACY ROUTES (kept for reference) */
+
 // Route: GET /nearby-restaurants
 // Description: Find highly-rated restaurants near user location
 const nearby_restaurants = async function(req, res) {
@@ -1394,7 +1387,7 @@ const map_restaurants = async function(req, res) {
       SELECT DISTINCT ON (business_id, photo_id) * FROM yelpphotos 
       WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
     ) yp
-    WHERE yp.aws_url IS NOT NULL  -- Only include photos with URLs
+    WHERE yp.aws_url IS NOT NULL
     GROUP BY yp.business_id
   ),
     restaurant_reviews AS (
@@ -1963,40 +1956,55 @@ const city_photo = async function(req, res) {
 
 
 module.exports = {
-    get_user,
-    update_user_name,
-    update_user_email,
-    update_user_home_city,
-    update_user_home_state,
-    add_favorite,
-    remove_favorite,
-    list_favorites,
-    add_visited,
-    remove_visited,
-    list_visited,
-    michelin_yelp_matches,
-    nearby_restaurants,
-    michelin_vs_yelp_stats,
-    restaurants_by_zip,
-    michelin_yelp_rating_comparison,
-    city_stats,
-    city_top_restaurants,
-    hidden_gems,
-    restaurant_ratings_over_time,
-    cuisine_ratings,
-    get_restaurant,
-    search_restaurants_by_name,
-    list_business_photos,
-    fetch_image,
-    michelin_engagement_stats,
-    most_adventurous_user,
-    top_influencers,
-    map_restaurants,
-    all_cities,
-    city_photo,
-    create_user_auth,
-    login_local,
-    login_google,
-    github_start,
-    github_callback
+  // User profile
+  get_user,
+  update_user_name,
+  update_user_email,
+  update_user_home_city,
+  update_user_home_state,
+  add_favorite,
+  remove_favorite,
+  list_favorites,
+  add_visited,
+  remove_visited,
+  list_visited,
+
+  // Auth
+  create_user_auth,
+  login_local,
+  login_google,
+  github_start,
+  github_callback,
+
+  // Leaderboard
+  michelin_engagement_stats,
+  most_adventurous_user,
+  top_influencers,
+
+  // City insights
+  city_stats,
+  city_top_restaurants,
+  hidden_gems,
+
+  // Search/browse
+  search_restaurants_by_name,
+  restaurants_by_zip,
+
+  // Restaurants & maps
+  get_restaurant,
+  map_restaurants,
+  michelin_yelp_matches,
+
+  // Media
+  list_business_photos,
+  fetch_image,
+  all_cities,
+  city_photo,
+
+  // Unused/legacy (kept for reference)
+  michelin_vs_yelp_stats,
+  michelin_yelp_rating_comparison,
+  nearby_restaurants,
+  restaurant_ratings_over_time,
+  cuisine_ratings,
 };

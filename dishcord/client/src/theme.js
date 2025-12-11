@@ -1,39 +1,21 @@
 import { createTheme } from "@mui/material/styles";
 
-/**
- * Dishcord Material UI Theme
- * A warm, inviting color palette combining restaurant discovery with Michelin prestige
- * 
- * Color Philosophy:
- * - Primary: Warm red-orange (appetizing, energetic)
- * - Secondary: Muted gold (premium, refined)
- * - Accent 1: Sage green (freshness, health-conscious)
- * - Accent 2: Deep plum (luxury, emphasis)
- * - Backgrounds: Warm neutrals (comfortable, not sterile)
- */
-
 const theme = createTheme({
   palette: {
-    // Primary Color: Dishcord Red-Orange
-    // Warm, appetizing, like chili oil or spicy ramen broth
     primary: {
-      main: "#EF5A3C",        // Base: warm red-orange
-      light: "#F57D63",       // +15% brightness for hover/light states
-      dark: "#C9452F",        // -15% brightness for pressed/dark states
-      contrastText: "#FFFFFF", // White text on primary buttons
+      main: "#EF5A3C",      
+      light: "#F57D63",      
+      dark: "#C9452F",  
+      contrastText: "#FFFFFF", 
     },
 
-    // Secondary Color: Michelin Gold (desaturated)
-    // Premium, sophisticated, without tackiness
     secondary: {
-      main: "#C9A86A",        // Base: muted desaturated gold (~12% less saturation than #D4AF37)
-      light: "#DBC49C",       // +15% brightness for hover/light states
-      dark: "#A68752",        // -15% brightness for pressed/dark states
-      contrastText: "#1A1A1A", // Dark text on secondary buttons for readability
+      main: "#C9A86A",     
+      light: "#DBC49C",
+      dark: "#A68752",     
+      contrastText: "#1A1A1A",
     },
 
-    // Success: Fresh, muted green
-    // Represents positive actions, visited status, health-conscious dining
     success: {
       main: "#6FA878",
       light: "#8FC295",
@@ -41,8 +23,6 @@ const theme = createTheme({
       contrastText: "#FFFFFF",
     },
 
-    // Error: Warm, approachable red
-    // Alerts and errors feel approachable, not harsh
     error: {
       main: "#D64545",
       light: "#E46B6B",
@@ -50,8 +30,6 @@ const theme = createTheme({
       contrastText: "#FFFFFF",
     },
 
-    // Warning: Honey amber
-    // Draws attention without alarming
     warning: {
       main: "#E0A400",
       light: "#F0B927",
@@ -59,8 +37,6 @@ const theme = createTheme({
       contrastText: "#1A1A1A",
     },
 
-    // Info: Soft sage (accent color 1)
-    // Secondary informational color
     info: {
       main: "#B7C9A8",
       light: "#D0DDBE",
@@ -68,28 +44,23 @@ const theme = createTheme({
       contrastText: "#1A1A1A",
     },
 
-    // Background Colors: Warm neutrals
-    // Inviting, not sterile white
     background: {
-      default: "#F8F5F2",     // Warm off-white
-      paper: "#FFFFFF",        // Clean white for cards and elevated surfaces
+      default: "#F8F5F2",   
+      paper: "#FFFFFF",      
     },
 
-    // Text Colors: Optimized for warm backgrounds
     text: {
-      primary: "#1A1A1A",      // Near-black for primary text
-      secondary: "#4D4D4D",    // Dark warm gray for secondary text
-      disabled: "#9E9E9E",     // Disabled text
+      primary: "#1A1A1A",      
+      secondary: "#4D4D4D",  
+      disabled: "#9E9E9E",     
     },
 
-    // Divider: Soft warm gray
     divider: "#E2DAD2",
 
-    // Action Colors: Hover, active, selected states
     action: {
       active: "#EF5A3C",
-      hover: "rgba(239, 90, 60, 0.08)",      // Primary hover overlay
-      selected: "rgba(239, 90, 60, 0.12)",   // Primary selected overlay
+      hover: "rgba(239, 90, 60, 0.08)",      
+      selected: "rgba(239, 90, 60, 0.12)",   
       disabled: "#BDBDBD",
       disabledBackground: "#F5F5F5",
       focus: "rgba(239, 90, 60, 0.05)",
@@ -99,7 +70,6 @@ const theme = createTheme({
   typography: {
     fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
     
-    // Headlines: Bold, warm color, inviting
     h1: {
       fontSize: "2.5rem",
       fontWeight: 700,
@@ -133,7 +103,6 @@ const theme = createTheme({
       color: "#1A1A1A",
     },
 
-    // Body text: Readable, warm secondary color
     body1: {
       fontSize: "1rem",
       fontWeight: 400,
@@ -147,7 +116,6 @@ const theme = createTheme({
       color: "#4D4D4D",
     },
 
-    // Button text: Bold, clear
     button: {
       fontSize: "0.875rem",
       fontWeight: 600,
@@ -155,7 +123,6 @@ const theme = createTheme({
       letterSpacing: "0.5px",
     },
 
-    // Caption and overline
     caption: {
       fontSize: "0.75rem",
       fontWeight: 400,
@@ -170,7 +137,6 @@ const theme = createTheme({
   },
 
   components: {
-    // AppBar: Primary red-orange with white text
     MuiAppBar: {
       styleOverrides: {
         root: {
@@ -180,7 +146,6 @@ const theme = createTheme({
       },
     },
 
-    // Button: Primary and secondary variants with proper contrast
     MuiButton: {
       styleOverrides: {
         root: {
@@ -205,7 +170,6 @@ const theme = createTheme({
       },
     },
 
-    // Card: White with subtle shadows and warm borders
     MuiCard: {
       styleOverrides: {
         root: {
@@ -269,7 +233,6 @@ const theme = createTheme({
       },
     },
 
-    // Rating: Gold stars (secondary color)
     MuiRating: {
       styleOverrides: {
         root: {
@@ -278,7 +241,6 @@ const theme = createTheme({
       },
     },
 
-    // Tabs: Primary accent for active tabs
     MuiTab: {
       styleOverrides: {
         root: {
@@ -291,7 +253,6 @@ const theme = createTheme({
       },
     },
 
-    // Dialog: Clean, elevated surfaces
     MuiDialog: {
       styleOverrides: {
         paper: {
@@ -301,7 +262,6 @@ const theme = createTheme({
       },
     },
 
-    // Snackbar/Alert: Clear color differentiation
     MuiAlert: {
       styleOverrides: {
         standardSuccess: {
@@ -319,7 +279,6 @@ const theme = createTheme({
       },
     },
 
-    // Divider: Warm, subtle
     MuiDivider: {
       styleOverrides: {
         root: {
@@ -328,7 +287,6 @@ const theme = createTheme({
       },
     },
 
-    // ListItem: Hover effect with primary accent
     MuiListItem: {
       styleOverrides: {
         root: {
@@ -339,7 +297,6 @@ const theme = createTheme({
       },
     },
 
-    // IconButton: Transparent ripple with primary accent
     MuiIconButton: {
       styleOverrides: {
         root: {

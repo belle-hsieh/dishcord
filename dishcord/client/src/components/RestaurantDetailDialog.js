@@ -74,7 +74,7 @@ export default function RestaurantDetailDialog({
         if (url) URL.revokeObjectURL(url);
       });
     };
-  }, [restaurant]);
+  }, [restaurant, apiBase, photoBlobs]);
 
   if (!restaurant) return null;
 
