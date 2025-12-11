@@ -1,3 +1,19 @@
+/**
+
+ * Landing page and main entry point for the Dishcord application.
+ * 
+ * Features:
+ * - Hero section with welcome message and branding
+ * - City search functionality to navigate to city pages
+ * - Quick navigation cards to key features:
+ *   - Explore Cities: Discover restaurants and statistics across cities
+ *   - Explore Restaurants: Browse and discover individual restaurants
+ *   - View Map: Find restaurants near you on an interactive map
+ *   - Leaderboard: View top restaurants and influential users
+ *   - Your Profile: Manage favorites and visited restaurants
+ * - Handles login/logout state and navigation
+ */
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

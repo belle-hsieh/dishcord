@@ -1,3 +1,16 @@
+/**
+
+ * Browse and search through cities with restaurant statistics and data.
+ * 
+ * Features:
+ * - Displays all available cities in a grid layout with pagination (20 cities per page)
+ * - Search/filter cities by name or state
+ * - City cards showing restaurant statistics and Michelin information
+ * - Sorted alphabetically by city name, then state
+ * - Error handling and loading states
+ * - Handles login/logout state and navigation
+ */
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

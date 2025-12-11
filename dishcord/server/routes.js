@@ -29,6 +29,7 @@ connection.connect((err) => err && console.log(err));
 
 // Route: GET /michelin-engagement-stats
 // Description: Compare customer engagement (photos/reviews ratio) between Michelin and non-Michelin restaurants
+// Where it's used: the LeaderBoard Page, specifically the Michelin Engagement section
 const michelin_engagement_stats = async function(req, res) {
   connection.query(
     `
@@ -54,6 +55,7 @@ const michelin_engagement_stats = async function(req, res) {
 
 // Route: GET /city-stats/:city/:state?
 // Description: Get statistics for a city, bridging Yelp and Michelin via Coordinates
+// WHere it's used: The city insights page, specifically the city stats section
 const city_stats = async function(req, res) {
   const city = req.params.city;
   const state = req.params.state; // Optional (might be null for Int'l cities)
@@ -63,7 +65,9 @@ const city_stats = async function(req, res) {
   }
 
   connection.query(
+
     `
+    -- This CTE gets all the restaurants in the city (and optionally state) from Yelp data
     WITH city_restaurants AS (
       SELECT
         r.business_id,
@@ -81,6 +85,7 @@ const city_stats = async function(req, res) {
       WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
           AND ($2::VARCHAR IS NULL OR LOWER(TRIM(r.state)) = LOWER(TRIM($2)))
     ),
+    -- Gets all the Michelin restaurants that match the Yelp restaurants in the city
     michelin_matches AS (
       SELECT DISTINCT
         cr.business_id,
@@ -98,6 +103,7 @@ const city_stats = async function(req, res) {
         AND ABS(mli.latitude - cr.latitude) < 0.0005
         AND ABS(mli.longitude - cr.longitude) < 0.0005
     ),
+    -- Gets the number of restaurants in the city that have each Michelin award (group by award)
     michelin_award_counts AS (
       SELECT
         award,
@@ -105,6 +111,8 @@ const city_stats = async function(req, res) {
       FROM michelin_matches
       GROUP BY award
     )
+    -- Selects the average Yelp rating, total Yelp restaurants, total Michelin restaurants,
+    -- and the breakdown of Michelin awards.
     SELECT
       COALESCE(AVG(cr.stars), 0) AS avg_yelp_rating,
       COUNT(cr.business_id) AS total_yelp_restaurants,
@@ -141,6 +149,7 @@ const city_stats = async function(req, res) {
 
 // Route: GET /city-top-restaurants/:city/:state?
 // Description: Get top restaurants in a city with optional filtering by rating and review count
+// Where it's used: The city insights page, specifically the top restaurants section
 const city_top_restaurants = async function(req, res) {
   const city = req.params.city;
   const state = req.params.state;
@@ -154,6 +163,8 @@ const city_top_restaurants = async function(req, res) {
   
   connection.query(
     `
+    -- Selects the top restaurants in the city (and optionally state) from Yelp data joined 
+    -- with Michelin Data, filtered by rating and review count, and ordered by rating and review count.
     SELECT
       r.business_id,
       r.name,
@@ -187,6 +198,8 @@ const city_top_restaurants = async function(req, res) {
 
 // Route: GET /hidden-gems/:city
 // Description: Find underrated restaurants (high rating, low review count) vs peers in a city
+/* Where it's used: The city insights page, specifically the hidden gems section
+also in the restaurants lists, and map page. */
 const hidden_gems = async function(req, res) {
   const city = req.params.city;
   const state = req.query.state;
@@ -200,6 +213,7 @@ const hidden_gems = async function(req, res) {
   
   connection.query(
     `
+    -- Filters yelp restaurants by city, optional state, yelp starr, and review count, and optional category
     WITH group_restaurants AS (
       SELECT
         r.business_id,
@@ -222,12 +236,16 @@ const hidden_gems = async function(req, res) {
           )
         )
     ),
+    -- computes the averadge rating and reviews from the group_restaurants CTE
     peer_stats AS (
         SELECT
             AVG(yelp_stars) AS avg_rating,
             AVG(review_count) AS avg_reviews
         FROM group_restaurants
     )
+    -- Selects the restaurants that are hidden gems, overhyped, or typical based on the average rating and review count
+    -- and the label is determined by the comparison of the yelp stars and the average rating and review count.
+    -- The label is used to color the restaurant on the map and list page.
     SELECT
         g.business_id,
         g.name,

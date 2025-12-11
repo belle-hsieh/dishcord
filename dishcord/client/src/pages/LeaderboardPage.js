@@ -1,3 +1,14 @@
+/**
+ 
+ * Displays competitive rankings and statistics celebrating top restaurant reviewers.
+ * 
+ * Features:
+ * - Most Adventurous User: Highlights the user who has explored the most diverse range of cuisines
+ * - Michelin Engagement Stats: Compares photo-to-review ratios between Michelin and non-Michelin restaurants
+ * - Top Influencers: Ranks users by influence score (based on review volume, engagement metrics, and restaurant popularity)
+ * - Handles login/logout state and navigation
+ */
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

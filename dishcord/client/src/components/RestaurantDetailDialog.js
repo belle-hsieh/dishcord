@@ -1,3 +1,17 @@
+/**
+ * Modal dialog component that displays a preview of restaurant details.
+ * 
+ * Features:
+ * - Restaurant information: Name, address, location
+ * - Dishcord status badge: Hidden Gem, Overrated, or Typical with descriptions
+ * - Michelin information: Award level, price, green star status, and description
+ * - Yelp statistics: Rating and review count
+ * - Category tags: Displays up to 5 restaurant categories
+ * - Photo gallery: Fetches and displays  restaurant photos with loading states
+ * - Top reviews: Shows 10 most useful reviews with ratings and dates
+ * - Navigation: Button to view full restaurant detail page
+ */
+
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {

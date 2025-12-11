@@ -1,3 +1,15 @@
+/**
+
+ * Google Maps component that displays restaurants as interactive markers.
+ * 
+ * Features:
+ * - Renders restaurants as markers on a Google Map
+ * - Custom marker icons based on restaurant status (Hidden Gem, Overrated, Typical)
+ * - Hover functionality: Shows InfoWindow with restaurant name when hovering over markers
+ * - Click handlers: Triggers callback when markers are clicked
+ * - Responsive map container with configurable center and zoom
+ */
+
 import React, { useMemo } from "react";
 import { GoogleMap, Marker, InfoWindow } from "@react-google-maps/api";
 import { Paper, Box, Typography, CircularProgress } from "@mui/material";

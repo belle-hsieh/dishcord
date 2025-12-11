@@ -1,3 +1,16 @@
+/**
+ * Search interface panel for the map page to find restaurants by location.
+ * 
+ * Features:
+ * - Location search: Text input for address, city, or zip code
+ * - Radius selector: Dropdown to choose search radius (1, 5, 10, or 20 miles)
+ * - Search button: Triggers restaurant search with loading state indicator
+ * - Clear button: Resets search results (shown when results are displayed)
+ * - Keyboard support: Enter key triggers search
+ * - Status legend: Displays chips for restaurant status types (Hidden Gem, Overrated, Typical) when results are shown
+
+ */
+
 import React from "react";
 import { Paper, Typography, Box, TextField, Button, Chip, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";

@@ -1,3 +1,16 @@
+/**
+ * UserProfilePage 
+ * 
+ * Displays a user's profile page with the following features:
+ * - User information display (name, email, location, member since date)
+ * - Profile editing (name, email, city, state) - only for own profile
+ * - Favorites list with sortable user ratings
+ * - Visited restaurants list with sortable user ratings
+ * - Restaurant details dialog when clicking on a restaurant
+ * - Handles login/logout state and navigation
+ * 
+ */
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

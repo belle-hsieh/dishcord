@@ -1,3 +1,18 @@
+/**
+
+ * Authentication page supporting multiple login methods:
+ * - Google Sign-In (OAuth with Google Identity Services)
+ * - GitHub OAuth login
+ * - Local email/password authentication (login and signup)
+ * 
+ * Features:
+ * - Toggle between login and signup modes
+ * - Error handling and validation
+ * - Stores user session in localStorage
+ * - Redirects to user profile after successful authentication
+ * - Handles login/logout state and navigation
+ */
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

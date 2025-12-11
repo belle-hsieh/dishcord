@@ -1,3 +1,15 @@
+/**
+ 
+ * Interactive map interface for discovering restaurants near a location.
+ * 
+ * Features:
+ * - Search restaurants by address/location with configurable radius (default 5 miles)
+ * - Google Maps integration with restaurant markers
+ * - Interactive map markers with hover and click functionality
+ * - Restaurant detail dialog for quick preview
+ * - Navigation to full restaurant detail page
+ */
+
 import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

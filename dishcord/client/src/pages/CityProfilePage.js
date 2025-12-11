@@ -1,3 +1,17 @@
+/**
+
+ * Displays comprehensive city-level restaurant statistics and discovery features.
+ * 
+ * Features:
+ * - City statistics dashboard: Average Yelp rating, total restaurants, Michelin count, and award breakdown
+ * - City photo gallery display
+ * - Top restaurants table with filterable results (min rating, min review count)
+ * - Hidden gems section: Underrated restaurants with high ratings but fewer reviews than average
+ * - Filterable hidden gems (min rating, max review count)
+ * - Navigation to individual restaurant detail pages
+ * - Handles login/logout state and navigation
+ */
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

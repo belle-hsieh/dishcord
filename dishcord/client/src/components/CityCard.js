@@ -1,3 +1,14 @@
+/**
+ * Card component that displays city information with photo and navigation.
+ * 
+ * Features:
+ * - City display: Shows formatted city name and state (e.g., "New York, NY")
+ * - Photo display: Fetches and displays city restaurant photo, or shows placeholder icon if unavailable
+ * - Navigation: Button to navigate to the city profile page
+ * - Hover effects: Card elevates on hover for better interactivity
+ 
+ */
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {

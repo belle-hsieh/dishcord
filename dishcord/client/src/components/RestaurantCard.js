@@ -1,3 +1,20 @@
+/**
+ * 
+ * Restaurant detail card component displaying full restaurant information.
+ * 
+ * Features:
+ * - Restaurant information: Name, address, location
+ * - Yelp statistics: Rating and review count
+ * - Michelin information: Award level, price, green star status, and description
+ * - Category tags: Displays all restaurant categories
+ * - Photo gallery: Fetches and displays restaurant photos with loading states
+ * - Reviews section: Shows reviews with expandable view (show all/less)
+ * - User interactions (when logged in):
+ *   - Add/remove from favorites
+ *   - Mark as visited with rating (1-5 stars)
+ *   - Remove from visited list
+ */
+
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import {

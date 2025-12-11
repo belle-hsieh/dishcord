@@ -1,3 +1,16 @@
+/**
+
+ * Displays restaurant search and browsing functionality with two modes:
+ * - Detail view: Shows full restaurant details when a restaurant ID is provided in the URL
+ * - Search view: Provides restaurant search and Michelin matches browsing
+ * 
+ * Features:
+ * - Search restaurants by name or ZIP code with pagination (20 results per page)
+ * - Browse Michelin & Yelp matched restaurants with pagination (7 per page)
+ * - Restaurant detail dialog for quick preview
+ * - Navigation to full restaurant detail page
+ */
+
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";

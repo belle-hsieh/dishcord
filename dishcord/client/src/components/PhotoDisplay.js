@@ -1,3 +1,16 @@
+/**
+ * Displays a horizontal gallery of restaurant photos for a given city.
+ * 
+ * Features:
+ * - Fetches city restaurant photos from the API
+ * - Auto-load functionality: Automatically loads photos when city and autoLoad are provided
+ * - Photo gallery: Horizontal scrolling card-based gallery with hover effects
+ * - Loading states: Shows loading indicators while fetching photos
+ * - Error handling: Displays error messages if photo loading fails
+ * - Blob URL management: Converts AWS URLs to blob URLs and handles cleanup on unmount
+ * - Progressive loading: Photos load individually with per-photo loading states
+ */
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { 
