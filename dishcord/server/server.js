@@ -56,12 +56,7 @@ app.get('/fetch-image', routes.fetch_image);
 app.get('/all-cities', routes.all_cities);
 app.get('/city-photo/:city', routes.city_photo);
 
-// Unused/Legacy
-app.get('/michelin-vs-yelp-stats', routes.michelin_vs_yelp_stats);
-app.get('/michelin-yelp-rating-comparison', routes.michelin_yelp_rating_comparison);
-app.get('/nearby-restaurants', routes.nearby_restaurants);
-app.get('/restaurant-ratings-over-time/:city', routes.restaurant_ratings_over_time);
-app.get('/cuisine-ratings/:city', routes.cuisine_ratings);
+// Removed unused/legacy routes
 
 app.listen(config.server_port, () => {
   console.log(`Server running at http://${config.server_host}:${config.server_port}/`)

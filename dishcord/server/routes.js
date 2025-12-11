@@ -32,45 +32,14 @@ connection.connect((err) => err && console.log(err));
 const michelin_engagement_stats = async function(req, res) {
   connection.query(
     `
-    WITH photo_counts AS (
-      SELECT p.business_id, COUNT(p.photo_id) AS num_photos
-      FROM yelpphotos p
-      GROUP BY p.business_id
-    ),
-    review_counts AS (
-      SELECT r.business_id, COUNT(r.review_id) AS num_reviews
-      FROM yelpreviewinfo r
-      GROUP BY r.business_id
-    ),
-    joined AS (
-      SELECT
-        b.business_id,
-        b.name,
-        COALESCE(pc.num_photos, 0) AS num_photos,
-        COALESCE(rc.num_reviews, 0) AS num_reviews,
-        CASE
-          WHEN mri.name IS NOT NULL THEN 'Michelin'
-          ELSE 'Non-Michelin'
-        END AS michelin_status
-      FROM yelprestaurantinfo b
-      LEFT JOIN photo_counts pc ON b.business_id = pc.business_id
-      LEFT JOIN review_counts rc ON b.business_id = rc.business_id
-      LEFT JOIN michelinrestaurantinfo mri
-        ON LOWER(TRIM(b.name)) = LOWER(TRIM(mri.name))
-      LEFT JOIN michelinlocationinfo mli
-        ON mri.address = mli.address
-    )
     SELECT
-      michelin_status,
+      CASE WHEN is_michelin THEN 'Michelin' ELSE 'Non-Michelin' END AS michelin_status,
       AVG(
-        CASE
-          WHEN num_reviews > 0 THEN num_photos::decimal / num_reviews
-          ELSE 0
-        END
+        CASE WHEN num_reviews > 0 THEN num_photos::decimal / num_reviews ELSE 0 END
       ) AS avg_photos_per_review,
       COUNT(*) AS restaurant_count
-    FROM joined
-    GROUP BY michelin_status
+    FROM mv_restaurant_photo_stats
+    GROUP BY is_michelin
     `,
     (err, data) => {
       if (err) {
@@ -355,48 +324,11 @@ const top_influencers = async function(req, res) {
 
   connection.query(
     `
-    WITH user_reviews AS (
-      SELECT
-        rv.user_id,
-        rv.business_id,
-        rv.useful,
-        rv.funny,
-        rv.cool
-      FROM yelpreviewinfo rv
-    ),
-    restaurant_popularity AS (
-      SELECT
-        business_id,
-        review_count,
-        NTILE(100) OVER (ORDER BY review_count) AS popularity_percentile
-      FROM yelprestaurantinfo
-    ),
-    user_stats AS (
-      SELECT
-        ur.user_id,
-        COUNT(*) AS num_reviews,
-        AVG(ur.useful + ur.funny + ur.cool) AS avg_reactions,
-        AVG(rp.popularity_percentile) AS avg_restaurant_popularity
-      FROM user_reviews ur
-      JOIN restaurant_popularity rp
-        ON ur.business_id = rp.business_id
-      GROUP BY ur.user_id
-    ),
-    influence_scores AS (
-      SELECT
-        user_id,
-        (LN(num_reviews + 1)
-        + COALESCE(avg_reactions, 0)
-        + COALESCE(avg_restaurant_popularity / 20.0, 0)) AS influence_score
-      FROM user_stats
-    )
     SELECT
-      u.user_id,
-      yi.name AS user_name,
-      u.influence_score
-    FROM influence_scores u
-    JOIN yelpuserinfo yi
-      ON yi.user_id = u.user_id
+      user_id,
+      user_name,
+      influence_score
+    FROM mv_user_influence_scores
     ORDER BY influence_score DESC
     LIMIT $1
     `,
@@ -796,180 +728,6 @@ const michelin_yelp_matches = async function(req, res) {
   );
 };
 
-/* UNUSED / LEGACY ROUTES (kept for reference) */
-
-// Route: GET /nearby-restaurants
-// Description: Find highly-rated restaurants near user location
-const nearby_restaurants = async function(req, res) {
-  const lat = parseFloat(req.query.lat);
-  const lon = parseFloat(req.query.lon);
-  const max_distance = parseFloat(req.query.max_distance);
-  
-  if (!lat || !lon || !max_distance) {
-    return res.status(400).json({ error: 'Missing required parameters: lat, lon, max_distance' });
-  }
-  
-  connection.query(
-    `
-    SELECT
-        r.name,
-        r.address,
-        r.city,
-        r.state,
-        r.stars,
-        r.review_count,
-        6371 * 2 * ASIN(
-            SQRT(
-                POWER(SIN(RADIANS($1 - l.latitude) / 2), 2) +
-                COS(RADIANS(l.latitude)) * COS(RADIANS($1)) *
-                POWER(SIN(RADIANS($2 - l.longitude) / 2), 2)
-            )
-        ) AS distance_km
-    FROM yelprestaurantinfo r
-    JOIN yelplocationinfo l
-        ON r.address = l.address
-       AND r.city = l.city
-       AND r.state = l.state
-       AND r.postal_code = l.postal_code
-    WHERE r.stars >= 4.5
-      AND r.review_count > 300
-      AND 6371 * 2 * ASIN(
-            SQRT(
-                POWER(SIN(RADIANS($1 - l.latitude) / 2), 2) +
-                COS(RADIANS(l.latitude)) * COS(RADIANS($1)) *
-                POWER(SIN(RADIANS($2 - l.longitude) / 2), 2)
-            )
-        ) <= $3
-    ORDER BY
-        distance_km ASC,
-        r.stars DESC,
-        r.review_count DESC
-    `,
-    [lat, lon, max_distance],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
-
-// Route: GET /michelin-vs-yelp-stats
-// Description: Compare average review coverage for Michelin vs non-Michelin restaurants
-const michelin_vs_yelp_stats = async function(req, res) {
-  connection.query(
-    `
-    WITH reviews_per_business AS (
-        SELECT
-            b.business_id,
-            b.name,
-            b.address,
-            b.city,
-            b.state,
-            b.review_count,
-            COUNT(r.review_id) AS review_entries,
-            CASE
-                WHEN b.review_count > 0
-                    THEN COUNT(r.review_id)::decimal / b.review_count
-                ELSE 0
-            END AS reviews_per_review
-        FROM yelprestaurantinfo b
-        LEFT JOIN yelpreviewinfo r
-            ON b.business_id = r.business_id
-        GROUP BY
-            b.business_id, b.name, b.address, b.city, b.state, b.review_count
-    ),
-    labeled AS (
-        SELECT
-            rb.*,
-            CASE
-                WHEN mri.name IS NOT NULL THEN 'Michelin'
-                ELSE 'Non-Michelin'
-            END AS michelin_status
-        FROM reviews_per_business rb
-        LEFT JOIN michelinrestaurantinfo mri
-            ON LOWER(TRIM(rb.name)) = LOWER(TRIM(mri.name))
-        JOIN michelinlocationinfo mli
-            ON mri.address = mli.address
-    )
-    SELECT
-        michelin_status,
-        AVG(reviews_per_review) AS avg_reviews_per_review,
-        COUNT(*) AS restaurant_count
-    FROM labeled
-    GROUP BY michelin_status
-    `,
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
-
-// Route: GET /michelin-yelp-rating-comparison
-// Description: Compare Michelin scores with Yelp ratings by city
-const michelin_yelp_rating_comparison = async function(req, res) {
-  connection.query(
-    `
-    WITH yelp_michelin_join AS (
-        SELECT
-            r.business_id,
-            r.city,
-            r.state,
-            r.stars AS yelp_stars,
-            CASE
-                WHEN mri.award ILIKE '3%' THEN 5
-                WHEN mri.award ILIKE '2%' THEN 4
-                WHEN mri.award ILIKE '1%' THEN 3
-                WHEN mri.award ILIKE 'Bib%' THEN 2
-                WHEN mri.award ILIKE 'Selected%' THEN 1
-                ELSE NULL
-            END AS michelin_score
-        FROM yelprestaurantinfo r
-        JOIN yelpreviewinfo yr
-            ON r.business_id = yr.business_id
-        JOIN michelinrestaurantinfo mri
-            ON LOWER(TRIM(r.name)) = LOWER(TRIM(mri.name))
-        JOIN michelinlocationinfo mli
-            ON mri.address = mli.address
-    ),
-    city_stats AS (
-        SELECT
-            city,
-            state,
-            AVG(yelp_stars) AS avg_yelp_rating,
-            AVG(michelin_score) AS avg_michelin_score
-        FROM yelp_michelin_join
-        WHERE michelin_score IS NOT NULL
-        GROUP BY city, state
-    )
-    SELECT
-        city,
-        state,
-        avg_yelp_rating,
-        avg_michelin_score,
-        (avg_yelp_rating - avg_michelin_score) AS diff,
-        ABS(avg_yelp_rating - avg_michelin_score) AS abs_diff
-    FROM city_stats
-    ORDER BY abs_diff DESC
-    `,
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
 
 // Route: GET /search-restaurants
 // Description: Search restaurants by partial name with pagination
@@ -1104,71 +862,6 @@ const restaurants_by_zip = async function(req, res) {
   );
 };
 
-// Route: GET /restaurant-ratings-over-time/:city
-// Description: Track average restaurant ratings by review year for a city
-const restaurant_ratings_over_time = async function(req, res) {
-  const city = req.params.city;
-  
-  if (!city) {
-    return res.status(400).json({ error: 'Missing required parameter: city' });
-  }
-  
-  connection.query(
-    `
-    SELECT
-      EXTRACT(YEAR FROM r.date)::int AS year,
-      AVG(r.stars)::float AS avg_rating,
-      COUNT(*) AS review_count
-    FROM yelpreviewinfo r
-    JOIN yelprestaurantinfo ri
-      ON r.business_id = ri.business_id
-    WHERE LOWER(TRIM(ri.city)) = LOWER(TRIM($1))
-      AND r.date IS NOT NULL
-    GROUP BY year
-    ORDER BY year
-    `,
-    [city],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
-const cuisine_ratings = async function(req, res) {
-  const city = req.params.city;
-  
-  if (!city) {
-    return res.status(400).json({ error: 'Missing required parameter: city' });
-  }
-  
-  connection.query(
-    `
-    SELECT
-      TRIM(c.category) AS cuisine,
-      AVG(r.stars) AS avg_rating,
-      COUNT(DISTINCT r.business_id) AS num_restaurants
-    FROM yelprestaurantinfo r
-    JOIN yelprestaurantcategories c
-      ON r.business_id = c.business_id
-    WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
-    GROUP BY TRIM(c.category)
-    ORDER BY avg_rating DESC
-    `,
-    [city],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
 
 // Route: GET /restaurant/:business_id
 // Description: Get a single restaurant by business_id with all details including Michelin award, categories, and location
@@ -2001,10 +1694,5 @@ module.exports = {
   all_cities,
   city_photo,
 
-  // Unused/legacy (kept for reference)
-  michelin_vs_yelp_stats,
-  michelin_yelp_rating_comparison,
-  nearby_restaurants,
-  restaurant_ratings_over_time,
-  cuisine_ratings,
+  // Removed unused/legacy routes
 };
