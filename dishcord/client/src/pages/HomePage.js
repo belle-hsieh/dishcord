@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import {
   AppBar,
   Toolbar,
@@ -15,12 +16,13 @@ import {
   CardActions,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import MapIcon from "@mui/icons-material/Map";
 import PersonIcon from "@mui/icons-material/Person";
+import RoomServiceIcon from "@mui/icons-material/RoomService";
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [citySearch, setCitySearch] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
@@ -52,34 +54,35 @@ export default function HomePage() {
     {
       title: "Explore Cities",
       description: "Discover restaurants and statistics across cities",
-      icon: <RestaurantIcon sx={{ fontSize: 40 }} />,
+      icon: <RoomServiceIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
       onClick: () => navigate("/explore-cities"),
-      color: "#d32f2f",
+      bgColor: theme.palette.primary.main,
     },
     {
       title: "View Map",
       description: "Find restaurants near you on an interactive map",
-      icon: <MapIcon sx={{ fontSize: 40 }} />,
+      icon: <MapIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
       onClick: () => navigate("/map"),
-      color: "#2e7d32",
+      bgColor: theme.palette.success.main,
     },
     {
-      title: "User Profile",
+      title: "Your Profile",
       description: "Manage your favorites and visited restaurants",
-      icon: <PersonIcon sx={{ fontSize: 40 }} />,
+      icon: <PersonIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
       onClick: () => navigate(userId ? `/user/${userId}` : "/user/1"),
-      color: "#ed6c02",
+      bgColor: theme.palette.secondary.main,
     },
   ];
 
   return (
-    
-    <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+    <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: theme.palette.background.default }}>
       {/* Navigation Bar */}
       <AppBar position="static">
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
@@ -108,39 +111,67 @@ export default function HomePage() {
       </AppBar>
 
       {/* Main Content */}
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth="lg" sx={{ mt: 6, mb: 6 }}>
+        {/* Logo Above Hero */}
+        <Box sx={{ mb: 4, display: "flex", justifyContent: "center", width: "100%", height: 200 }}>
+          <img src="/logo.png" alt="Dishcord" style={{ width: 200, height: 200, objectFit: "contain" }} />
+        </Box>
+
         {/* Hero Section */}
         <Paper
           elevation={3}
           sx={{
-            p: 4,
-            mb: 4,
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "white",
-            borderRadius: 2,
+            p: 6,
+            mb: 6,
+            backgroundColor: theme.palette.primary.main,
+            backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            color: "#FFFFFF",
+            borderRadius: 3,
+            textAlign: "center",
           }}
         >
-          <Typography variant="h3" component="h1" gutterBottom>
+          <Typography
+            variant="h3"
+            component="h1"
+            gutterBottom
+            sx={{ fontWeight: 700, color: "#FFFFFF", mb: 2 }}
+          >
             Welcome to Dishcord
           </Typography>
-          <Typography variant="h6" sx={{ mb: 3, opacity: 0.9 }}>
-          Discover the real value of any restaurant with Dishcord’s blend of crowd opinion and culinary critics
+          <Typography
+            variant="h6"
+            sx={{
+              mb: 4,
+              opacity: 0.95,
+              color: "#FFFFFF",
+              maxWidth: "700px",
+              mx: "auto",
+              fontWeight: 400,
+            }}
+          >
+            Discover exceptional restaurants by combining crowd insights with Michelin-starred culinary excellence
           </Typography>
 
           {/* City Search */}
-          <Box component="form" onSubmit={handleCitySearch} sx={{ mt: 3 }}>
+          <Box component="form" onSubmit={handleCitySearch} sx={{ mt: 4, display: "flex", gap: 1, maxWidth: "600px", mx: "auto" }}>
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Search for a city (e.g., New York, San Francisco, Chicago)"
+              placeholder="Search for a city..."
               value={citySearch}
               onChange={(e) => setCitySearch(e.target.value)}
               sx={{
-                backgroundColor: "white",
+                backgroundColor: "#FFFFFF",
                 borderRadius: 1,
                 "& .MuiOutlinedInput-root": {
                   "& fieldset": {
                     borderColor: "transparent",
+                  },
+                  "&:hover fieldset": {
+                    borderColor: theme.palette.divider,
+                  },
+                  "&.Mui-focused fieldset": {
+                    borderColor: theme.palette.primary.main,
                   },
                 },
               }}
@@ -150,7 +181,7 @@ export default function HomePage() {
                     type="submit"
                     variant="contained"
                     startIcon={<SearchIcon />}
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 1, textTransform: "capitalize" }}
                   >
                     Search
                   </Button>
@@ -160,10 +191,16 @@ export default function HomePage() {
           </Box>
         </Paper>
 
-        {/* Quick Links */}
-        <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 3 }}>
-          Quick Links
-        </Typography>
+        {/* Featured Section */}
+        <Box sx={{ mb: 6 }}>
+          <Typography
+            variant="h5"
+            component="h2"
+            gutterBottom
+            sx={{ fontWeight: 700, mb: 3, color: theme.palette.text.primary }}
+          >
+            Start Exploring
+          </Typography>
         <Grid container spacing={3}>
           {quickLinks.map((link, index) => (
             <Grid item xs={12} md={4} key={index}>
@@ -173,99 +210,62 @@ export default function HomePage() {
                   display: "flex",
                   flexDirection: "column",
                   cursor: "pointer",
-                  transition: "transform 0.2s, box-shadow 0.2s",
+                  transition: "all 0.3s ease-in-out",
+                  border: `1px solid ${theme.palette.divider}`,
                   "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: 4,
+                    transform: "translateY(-8px)",
+                    boxShadow: `0px 12px 32px rgba(0, 0, 0, 0.15)`,
                   },
                 }}
                 onClick={link.onClick}
               >
-                <CardContent sx={{ flexGrow: 1, textAlign: "center", pt: 3 }}>
-                  <Box sx={{ color: link.color, mb: 2 }}>{link.icon}</Box>
-                  <Typography variant="h6" component="h3" gutterBottom>
+                <CardContent
+                  sx={{
+                    flexGrow: 0,
+                    textAlign: "center",
+                    pt: 4,
+                    pb: 3,
+                    backgroundColor: link.bgColor,
+                    color: "#FFFFFF",
+                  }}
+                >
+                  <Box sx={{ color: "#FFFFFF", mb: 2 }}>{link.icon}</Box>
+                  <Typography
+                    variant="h6"
+                    component="h3"
+                    gutterBottom
+                    sx={{ fontWeight: 700, color: "#FFFFFF" }}
+                  >
                     {link.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                </CardContent>
+                <CardContent sx={{ flexGrow: 1, textAlign: "center", pt: 2, pb: 2 }}>
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                     {link.description}
                   </Typography>
                 </CardContent>
-                <CardActions sx={{ justifyContent: "center", pb: 2 }}>
-                  <Button size="small" sx={{ color: link.color }}>
+                <CardActions sx={{ justifyContent: "center", pb: 3 }}>
+                  <Button
+                    size="medium"
+                    sx={{
+                      color: "#FFFFFF",
+                      backgroundColor: link.bgColor,
+                      fontWeight: 600,
+                      "&:hover": {
+                        backgroundColor: link.bgColor,
+                        opacity: 0.9,
+                      },
+                    }}
+                  >
                     Explore →
                   </Button>
                 </CardActions>
               </Card>
             </Grid>
           ))}
-        </Grid>
-
-        {/* Featured Section */}
-        <Box sx={{ mt: 5 }}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Features
-          </Typography>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                sx={{
-                  p: 2,
-                  textAlign: "center",
-                  cursor: "pointer",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 4,
-                  },
-                }}
-                onClick={() => navigate("/restaurants")}
-              >
-                <Typography variant="h6">Top Restaurants</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Find the most reviewed restaurants in any city
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper
-                sx={{
-                  p: 2,
-                  textAlign: "center",
-                  cursor: "pointer",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 4,
-                  },
-                }}
-                onClick={() => navigate("/restaurants#michelin")}
-              >
-                <Typography variant="h6">Michelin Guide</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Discover Michelin-starred restaurants
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h6">Nearby Search</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Find highly-rated restaurants near you
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h6">Track Visits</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Save favorites and rate your visits
-                </Typography>
-              </Paper>
-            </Grid>
           </Grid>
         </Box>
       </Container>
     </Box>
   );
-  
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import axios from "axios";
 import {
   Container,
@@ -13,8 +14,6 @@ import {
   AppBar,
   Toolbar,
 } from "@mui/material";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
-import GoogleIcon from "@mui/icons-material/Google";
 
 const API_BASE = "http://localhost:8080";
 const GOOGLE_CLIENT_ID =
@@ -22,6 +21,7 @@ const GOOGLE_CLIENT_ID =
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -115,15 +115,10 @@ export default function LoginPage() {
     };
   }, [handleGoogleSignIn]);
 
-  /*******************************************
-   * MANUAL BUTTON CLICK → OPEN GOOGLE POPUP
-   *******************************************/
-  const handleGoogleButtonClick = () => {
-    if (window.google && window.google.accounts) {
-      window.google.accounts.id.prompt();
-    }
-  };
 
+  /*******************************************
+   * GITHUB LOGIN
+   *******************************************/
   const handleGithubLogin = () => {
     window.location.href = "http://localhost:8080/auth/github/start";
   };
@@ -173,10 +168,12 @@ export default function LoginPage() {
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      <AppBar position="static">
+      <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>

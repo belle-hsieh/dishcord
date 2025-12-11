@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import { AppBar, Toolbar, Typography, Button, Container, Box, Alert } from "@mui/material";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import { useJsApiLoader } from "@react-google-maps/api";
 import axios from "axios";
 import config from "../config.json";
@@ -15,6 +15,7 @@ const GOOGLE_MAPS_API_KEY = "AIzaSyBed2vHtWoi0SlRf78shBVZnrNdirgBrJI";
 
 export default function MapPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [searchLocation, setSearchLocation] = useState("");
   const [radius, setRadius] = useState(5);
   const [restaurants, setRestaurants] = useState([]);
@@ -113,17 +114,19 @@ export default function MapPage() {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      <AppBar position="static">
+    <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: theme.palette.background.default }}>
+      <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
             Home
           </Button>
-          <Button color="inherit" onClick={() => navigate("/city/New York")}>
+          <Button color="inherit" onClick={() => navigate("/explore-cities")}>
             Cities
           </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>
@@ -163,7 +166,7 @@ export default function MapPage() {
         )}
 
         {restaurants.length > 0 && (
-          <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+          <Typography variant="body2" sx={{ mb: 1, color: theme.palette.text.primary }}>
             Found {restaurants.length} restaurant{restaurants.length !== 1 ? "s" : ""}
           </Typography>
         )}

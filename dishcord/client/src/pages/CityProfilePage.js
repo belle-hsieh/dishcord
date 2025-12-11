@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import axios from "axios";
 import {
   AppBar,
@@ -24,12 +25,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from "@mui/material";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import StarIcon from "@mui/icons-material/Star";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -39,6 +35,7 @@ import PhotoDisplay from "../components/PhotoDisplay";
 export default function CityProfilePage() {
   const { cityName } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
   
@@ -54,9 +51,6 @@ export default function CityProfilePage() {
   const [minReviewCount, setMinReviewCount] = useState("");
   const [maxReviewCountGems, setMaxReviewCountGems] = useState("100");
   
-  // Dialog states
-  const [selectedRestaurant, setSelectedRestaurant] = useState(null);
-  const [openDialog, setOpenDialog] = useState(false);
   const [minRatingGems, setMinRatingGems] = useState("4.0");
   
   const apiBase = `http://${config.server_host}:${config.server_port}`;
@@ -154,13 +148,10 @@ export default function CityProfilePage() {
   };
 
   const handleRestaurantClick = (restaurant) => {
-    setSelectedRestaurant(restaurant);
-    setOpenDialog(true);
-  };
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setSelectedRestaurant(null);
+    const businessId = restaurant?.business_id || restaurant;
+    if (businessId) {
+      navigate(`/restaurant/${businessId}`);
+    }
   };
 
   const formatMichelinBreakdown = (breakdown) => {
@@ -175,10 +166,12 @@ export default function CityProfilePage() {
   if (loading) {
     return (
       <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-        <AppBar position="static">
+        <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
           <Toolbar>
-            <RestaurantIcon sx={{ mr: 2 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+              <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </Box>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
               Dishcord
             </Typography>
             <Button color="inherit" onClick={() => navigate("/")}>
@@ -214,9 +207,11 @@ export default function CityProfilePage() {
   if (error) {
     return (
       <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-        <AppBar position="static">
+        <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
           <Toolbar>
-            <RestaurantIcon sx={{ mr: 2 }} />
+            <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+              <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </Box>
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Dishcord
             </Typography>
@@ -256,10 +251,12 @@ export default function CityProfilePage() {
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
       {/* Navigation Bar */}
-      <AppBar position="static">
+      <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
@@ -325,7 +322,7 @@ export default function CityProfilePage() {
               <Grid item xs={12} sm={6} md={3}>
                 <Card sx={{ textAlign: "center", bgcolor: "#fff3e0" }}>
                   <CardContent>
-                    <RestaurantIcon sx={{ fontSize: 40, color: "#f57c00", mb: 1 }} />
+                    <EmojiEventsIcon sx={{ fontSize: 40, color: "#f57c00", mb: 1 }} />
                     <Typography variant="h4" sx={{ fontWeight: 700, color: "#f57c00" }}>
                       {cityStats.total_yelp_restaurants || 0}
                     </Typography>
@@ -349,10 +346,10 @@ export default function CityProfilePage() {
                 </Card>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Card sx={{ textAlign: "center", bgcolor: "#f3e5f5" }}>
+                <Card sx={{ textAlign: "center", bgcolor: theme.palette.secondary.light }}>
                   <CardContent>
-                    <EmojiEventsIcon sx={{ fontSize: 40, color: "#7b1fa2", mb: 1 }} />
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: "#7b1fa2", mt: 1 }}>
+                    <EmojiEventsIcon sx={{ fontSize: 40, color: theme.palette.secondary.main, mb: 1 }} />
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: theme.palette.secondary.main, mt: 1 }}>
                       {formatMichelinBreakdown(cityStats.michelin_breakdown)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
@@ -568,61 +565,6 @@ export default function CityProfilePage() {
         </Paper>
       </Container>
 
-      {/* Restaurant Details Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        {selectedRestaurant && (
-          <>
-            <DialogTitle>{selectedRestaurant.name}</DialogTitle>
-            <DialogContent sx={{ pt: 2 }}>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Address
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedRestaurant.address || "N/A"}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Rating
-                  </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                    <StarIcon sx={{ color: "#ffc107", fontSize: 20 }} />
-                    <Typography variant="body2">
-                      {selectedRestaurant.stars ? Number(selectedRestaurant.stars).toFixed(1) : "N/A"} / 5
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    Reviews
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedRestaurant.review_count ? selectedRestaurant.review_count.toLocaleString() : 0} reviews
-                  </Typography>
-                </Box>
-                {selectedRestaurant.award && (
-                  <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      Michelin Award
-                    </Typography>
-                    <Chip 
-                      label={selectedRestaurant.award} 
-                      color="primary" 
-                      size="small"
-                      icon={<EmojiEventsIcon />}
-                    />
-                  </Box>
-                )}
-              </Stack>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseDialog}>Close</Button>
-            </DialogActions>
-          </>
-        )}
-      </Dialog>
     </Box>
   );
 }

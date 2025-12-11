@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import axios from "axios";
 import {
   AppBar,
@@ -14,12 +15,9 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
-  Dialog,
-  IconButton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import RestaurantCard from "../components/RestaurantCard";
 import RestaurantDetailDialog from "../components/RestaurantDetailDialog";
 import config from "../config.json";
@@ -27,6 +25,7 @@ import config from "../config.json";
 export default function RestaurantPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
   const location = useLocation();
 
   const [citySearch, setCitySearch] = useState("");
@@ -138,10 +137,12 @@ export default function RestaurantPage() {
   };
 
   const renderNav = () => (
-    <AppBar position="static">
+    <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
       <Toolbar>
-        <RestaurantIcon sx={{ mr: 2 }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+        <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+          <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        </Box>
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
           Dishcord
         </Typography>
         <Button color="inherit" onClick={() => navigate("/")}>

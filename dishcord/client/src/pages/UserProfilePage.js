@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import axios from "axios";
 import {
   AppBar,
@@ -18,8 +19,10 @@ import {
   Divider,
   Dialog,
   IconButton,
+  Rating,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import PersonIcon from "@mui/icons-material/Person";
 import StarIcon from "@mui/icons-material/Star";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -31,6 +34,7 @@ import config from "../config.json";
 export default function UserProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const theme = useTheme();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,6 +42,8 @@ export default function UserProfilePage() {
   const [userId, setUserId] = useState(null);
   const [favorites, setFavorites] = useState([]);
   const [visited, setVisited] = useState([]);
+  const [favoriteSortDir, setFavoriteSortDir] = useState("desc");
+  const [visitedSortDir, setVisitedSortDir] = useState("desc");
   const [loadingFavorites, setLoadingFavorites] = useState(false);
   const [loadingVisited, setLoadingVisited] = useState(false);
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null);
@@ -45,6 +51,63 @@ export default function UserProfilePage() {
   const previousUserIdRef = useRef(null);
 
   const apiBase = `http://${config.server_host}:${config.server_port}`;
+
+  const fetchFavorites = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoadingFavorites(true);
+      const res = await axios.get(`${apiBase}/users/${id}/favorites`);
+      setFavorites(res.data || []);
+    } catch (err) {
+      console.error("Error fetching favorites:", err);
+      setFavorites([]);
+    } finally {
+      setLoadingFavorites(false);
+    }
+  }, [apiBase, id]);
+
+  const fetchVisited = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoadingVisited(true);
+      const res = await axios.get(`${apiBase}/users/${id}/visited`);
+      setVisited(res.data || []);
+    } catch (err) {
+      console.error("Error fetching visited:", err);
+      setVisited([]);
+    } finally {
+      setLoadingVisited(false);
+    }
+  }, [apiBase, id]);
+
+  const sortByUserRating = useCallback((items, direction) => {
+    const normalize = (value) => {
+      if (value === null || value === undefined) {
+        return direction === "asc" ? Infinity : -Infinity;
+      }
+      return Number(value);
+    };
+
+    return [...items].sort((a, b) => {
+      const aRating = normalize(a.user_stars);
+      const bRating = normalize(b.user_stars);
+
+      if (aRating === bRating) {
+        return (a.name || "").localeCompare(b.name || "");
+      }
+      return direction === "asc" ? aRating - bRating : bRating - aRating;
+    });
+  }, []);
+
+  const sortedFavorites = useMemo(
+    () => sortByUserRating(favorites, favoriteSortDir),
+    [favorites, favoriteSortDir, sortByUserRating]
+  );
+
+  const sortedVisited = useMemo(
+    () => sortByUserRating(visited, visitedSortDir),
+    [visited, visitedSortDir, sortByUserRating]
+  );
 
   useEffect(() => {
     const checkLoginStatus = () => {
@@ -139,36 +202,9 @@ export default function UserProfilePage() {
   }, [id, apiBase, userId]);
   useEffect(() => {
     if (!id) return;
-
-    const fetchFavorites = async () => {
-      try {
-        setLoadingFavorites(true);
-        const res = await axios.get(`${apiBase}/users/${id}/favorites`);
-        setFavorites(res.data || []);
-      } catch (err) {
-        console.error("Error fetching favorites:", err);
-        setFavorites([]);
-      } finally {
-        setLoadingFavorites(false);
-      }
-    };
-
-    const fetchVisited = async () => {
-      try {
-        setLoadingVisited(true);
-        const res = await axios.get(`${apiBase}/users/${id}/visited`);
-        setVisited(res.data || []);
-      } catch (err) {
-        console.error("Error fetching visited:", err);
-        setVisited([]);
-      } finally {
-        setLoadingVisited(false);
-      }
-    };
-
     fetchFavorites();
     fetchVisited();
-  }, [id, apiBase]);
+  }, [id, fetchFavorites, fetchVisited]);
 
   const handleRestaurantClick = (businessId) => {
     if (businessId) {
@@ -182,16 +218,20 @@ export default function UserProfilePage() {
     setSelectedRestaurantId(null);
   };
 
+  const handleFavoriteSortChange = (_event, value) => {
+    if (value) {
+      setFavoriteSortDir(value);
+    }
+  };
+
+  const handleVisitedSortChange = (_event, value) => {
+    if (value) {
+      setVisitedSortDir(value);
+    }
+  };
+
   const handleFavoriteChange = (businessId, isAdded) => {
     if (isAdded) {
-      const fetchFavorites = async () => {
-        try {
-          const res = await axios.get(`${apiBase}/users/${id}/favorites`);
-          setFavorites(res.data || []);
-        } catch (err) {
-          console.error("Error fetching favorites:", err);
-        }
-      };
       fetchFavorites();
     } else {
       setFavorites(prev => prev.filter(r => r.business_id !== businessId));
@@ -200,27 +240,23 @@ export default function UserProfilePage() {
 
   const handleVisitedChange = (businessId, isAdded) => {
     if (isAdded) {
-      const fetchVisited = async () => {
-        try {
-          const res = await axios.get(`${apiBase}/users/${id}/visited`);
-          setVisited(res.data || []);
-        } catch (err) {
-          console.error("Error fetching visited:", err);
-        }
-      };
       fetchVisited();
+      fetchFavorites();
     } else {
       setVisited(prev => prev.filter(r => r.business_id !== businessId));
+      fetchFavorites();
     }
   };
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
       {/* Navigation Bar */}
-      <AppBar position="static">
+      <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
@@ -290,19 +326,39 @@ export default function UserProfilePage() {
 
             {/* Favorites Section */}
           <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-              <FavoriteIcon sx={{ fontSize: 32, mr: 2, color: "error.main" }} />
-              <Typography variant="h5" component="h2">
-                Favorites
-              </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1,
+                mb: 3,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <FavoriteIcon sx={{ fontSize: 32, mr: 2, color: "error.main" }} />
+                <Typography variant="h5" component="h2">
+                  Favorites
+                </Typography>
+              </Box>
+              <ToggleButtonGroup
+                size="small"
+                value={favoriteSortDir}
+                exclusive
+                onChange={handleFavoriteSortChange}
+              >
+                <ToggleButton value="desc">Your rating ↓</ToggleButton>
+                <ToggleButton value="asc">Your rating ↑</ToggleButton>
+              </ToggleButtonGroup>
             </Box>
             {loadingFavorites ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
                 <CircularProgress size={24} />
               </Box>
-            ) : favorites.length > 0 ? (
+            ) : sortedFavorites.length > 0 ? (
               <List>
-                {favorites.map((restaurant, idx) => (
+                {sortedFavorites.map((restaurant, idx) => (
                   <React.Fragment key={restaurant.business_id || idx}>
                     <ListItemButton
                       onClick={() => handleRestaurantClick(restaurant.business_id)}
@@ -317,10 +373,27 @@ export default function UserProfilePage() {
                               {restaurant.city ? `, ${restaurant.city}` : ""}
                               {restaurant.state ? `, ${restaurant.state}` : ""}
                             </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.75 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                Your rating:
+                              </Typography>
+                              {restaurant.user_stars ? (
+                                <Rating
+                                  size="small"
+                                  precision={0.5}
+                                  value={Number(restaurant.user_stars)}
+                                  readOnly
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  Not rated yet
+                                </Typography>
+                              )}
+                            </Stack>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                               <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
                               <Typography variant="body2" color="text.secondary">
-                                {restaurant.stars ? Number(restaurant.stars).toFixed(1) : "N/A"} •{" "}
+                                Yelp {restaurant.stars ? Number(restaurant.stars).toFixed(1) : "N/A"} •{" "}
                                 {restaurant.review_count?.toLocaleString?.() || 0} reviews
                               </Typography>
                             </Stack>
@@ -328,7 +401,7 @@ export default function UserProfilePage() {
                         }
                       />
                     </ListItemButton>
-                    {idx < favorites.length - 1 && <Divider />}
+                    {idx < sortedFavorites.length - 1 && <Divider />}
                   </React.Fragment>
                 ))}
               </List>
@@ -341,19 +414,39 @@ export default function UserProfilePage() {
 
           {/* Visited Section */}
           <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-              <CheckCircleIcon sx={{ fontSize: 32, mr: 2, color: "success.main" }} />
-              <Typography variant="h5" component="h2">
-                Visited
-              </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1,
+                mb: 3,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <CheckCircleIcon sx={{ fontSize: 32, mr: 2, color: "success.main" }} />
+                <Typography variant="h5" component="h2">
+                  Visited
+                </Typography>
+              </Box>
+              <ToggleButtonGroup
+                size="small"
+                value={visitedSortDir}
+                exclusive
+                onChange={handleVisitedSortChange}
+              >
+                <ToggleButton value="desc">Your rating ↓</ToggleButton>
+                <ToggleButton value="asc">Your rating ↑</ToggleButton>
+              </ToggleButtonGroup>
             </Box>
             {loadingVisited ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
                 <CircularProgress size={24} />
               </Box>
-            ) : visited.length > 0 ? (
+            ) : sortedVisited.length > 0 ? (
               <List>
-                {visited.map((restaurant, idx) => (
+                {sortedVisited.map((restaurant, idx) => (
                   <React.Fragment key={restaurant.business_id || idx}>
                     <ListItemButton
                       onClick={() => handleRestaurantClick(restaurant.business_id)}
@@ -368,10 +461,27 @@ export default function UserProfilePage() {
                               {restaurant.city ? `, ${restaurant.city}` : ""}
                               {restaurant.state ? `, ${restaurant.state}` : ""}
                             </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.75 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                Your rating:
+                              </Typography>
+                              {restaurant.user_stars ? (
+                                <Rating
+                                  size="small"
+                                  precision={0.5}
+                                  value={Number(restaurant.user_stars)}
+                                  readOnly
+                                />
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  Not rated yet
+                                </Typography>
+                              )}
+                            </Stack>
                             <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
                               <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
                               <Typography variant="body2" color="text.secondary">
-                                {restaurant.stars ? Number(restaurant.stars).toFixed(1) : "N/A"} •{" "}
+                                Yelp {restaurant.stars ? Number(restaurant.stars).toFixed(1) : "N/A"} •{" "}
                                 {restaurant.review_count?.toLocaleString?.() || 0} reviews
                               </Typography>
                             </Stack>
@@ -379,7 +489,7 @@ export default function UserProfilePage() {
                         }
                       />
                     </ListItemButton>
-                    {idx < visited.length - 1 && <Divider />}
+                    {idx < sortedVisited.length - 1 && <Divider />}
                   </React.Fragment>
                 ))}
               </List>

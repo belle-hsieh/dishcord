@@ -12,23 +12,29 @@ import RestaurantIcon from "@mui/icons-material/Restaurant";
 import config from "../config.json";
 
 // Capitalize first letter of each word
-const capitalizeCityName = (name) => {
-  return name
+const capitalizeWords = (name) =>
+  name
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
+
+const formatCityLabel = ({ city, state }) => {
+  const cityPart = city ? capitalizeWords(city) : "";
+  const statePart = state ? state.toUpperCase() : "";
+  return statePart ? `${cityPart}, ${statePart}` : cityPart;
 };
 
-export default function CityCard({ cityName }) {
+export default function CityCard({ city }) {
   const navigate = useNavigate();
   const [photoUrl, setPhotoUrl] = useState(null);
 
   const apiBase = `http://${config.server_host}:${config.server_port}`;
+  const cityLabel = formatCityLabel(city);
 
   const fetchCityPhoto = async () => {
     try {
       const response = await fetch(
-        `${apiBase}/city-photo/${encodeURIComponent(cityName)}`
+        `${apiBase}/city-photo/${encodeURIComponent(city.city)}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -37,7 +43,7 @@ export default function CityCard({ cityName }) {
         setPhotoUrl(null);
       }
     } catch (err) {
-      console.error(`Error fetching photo for ${cityName}:`, err);
+      console.error(`Error fetching photo for ${cityLabel}:`, err);
       setPhotoUrl(null);
     }
   };
@@ -45,10 +51,10 @@ export default function CityCard({ cityName }) {
   useEffect(() => {
     fetchCityPhoto();
 
-  }, [cityName]);
+  }, [city]);
 
   const handleViewCity = () => {
-    navigate(`/city/${encodeURIComponent(cityName)}`);
+    navigate(`/city/${encodeURIComponent(cityLabel)}`);
   };
 
   return (
@@ -71,7 +77,7 @@ export default function CityCard({ cityName }) {
           component="img"
           height="200"
           image={photoUrl}
-          alt={cityName}
+          alt={cityLabel}
           sx={{
             objectFit: "cover",
             backgroundColor: "#f5f5f5",
@@ -95,7 +101,7 @@ export default function CityCard({ cityName }) {
       <CardContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", py: 2 }}>
         {/* City Name */}
         <Typography variant="h6" component="h2" sx={{ fontWeight: 700 }}>
-          {capitalizeCityName(cityName)}
+          {cityLabel}
         </Typography>
 
         {/* Subtitle */}

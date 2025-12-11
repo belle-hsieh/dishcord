@@ -641,14 +641,18 @@ const add_favorite = async function(req, res) {
   };
 
 // Route: GET /users/:id/favorites
-// Description: Lists all of a user's favorites
+// Description: Lists all of a user's favorites and includes the user's own rating if visited
 const list_favorites = async function(req, res) {
     connection.query(
       `
-      SELECT r.*
+      SELECT 
+        r.*,
+        v.stars AS user_stars
       FROM favorites f
       JOIN yelprestaurantinfo r
         ON r.business_id = f.business_id
+      LEFT JOIN visited v
+        ON v.user_id = f.user_id AND v.business_id = f.business_id
       WHERE f.user_id = $1
       ORDER BY r.stars DESC
       `,
@@ -729,11 +733,13 @@ const remove_visited = async function(req, res) {
   };
 
 // Route: GET /users/:id/visited
-// Description: Lists all of a user's visited restaurants ordered by stars
+// Description: Lists all of a user's visited restaurants ordered by their rating
 const list_visited = async function(req, res) {
     connection.query(
       `
-      SELECT r.*, v.stars
+      SELECT 
+        r.*,
+        v.stars AS user_stars
       FROM visited v
       JOIN yelprestaurantinfo r
         ON r.business_id = v.business_id
@@ -1819,22 +1825,23 @@ const github_callback = async function(req, res) {
 
 
 // Route: GET /all-cities
-// Description: Get all distinct cities from YelpRestaurantInfo
+// Description: Get all distinct city/state pairs from YelpRestaurantInfo
 const all_cities = async function(req, res) {
   connection.query(
     `
-    SELECT DISTINCT LOWER(TRIM(city)) as city
+    SELECT DISTINCT
+      LOWER(TRIM(city)) AS city,
+      LOWER(TRIM(state)) AS state
     FROM yelprestaurantinfo
-    WHERE city IS NOT NULL
-    ORDER BY city ASC
+    WHERE city IS NOT NULL AND state IS NOT NULL
+    ORDER BY city ASC, state ASC
     `,
     (err, data) => {
       if (err) {
         console.log(err);
         res.status(500).json([]);
       } else {
-        const cities = data.rows.map(row => row.city);
-        res.json(cities);
+        res.json(data.rows);
       }
     }
   );

@@ -27,6 +27,7 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
   const [restaurant, setRestaurant] = useState(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isVisited, setIsVisited] = useState(false);
+  const [visitedRating, setVisitedRating] = useState(null);
   const [userId, setUserId] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [photoBlobs, setPhotoBlobs] = useState({});
@@ -132,10 +133,11 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
 
         // Check visited
         const visitedRes = await axios.get(`${apiBase}/users/${userId}/visited`);
-        const isInVisited = visitedRes.data.some(
+        const visitedEntry = visitedRes.data.find(
           (r) => r.business_id === businessId
         );
-        setIsVisited(isInVisited);
+        setIsVisited(!!visitedEntry);
+        setVisitedRating(visitedEntry?.user_stars ?? visitedEntry?.stars ?? null);
       } catch (err) {
         console.error("Failed to check favorites/visited status", err);
       }
@@ -170,30 +172,37 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
     }
   };
 
-  const handleVisitedToggle = async () => {
+  const handleVisitedRatingChange = async (_event, value) => {
     if (!userId || !businessId) return;
+    if (!value || value < 1 || value > 5) return;
+
+    setVisitedRating(value);
 
     try {
-      if (isVisited) {
-        // Remove from visited
-        await axios.delete(`${apiBase}/users/${userId}/visited/${businessId}`);
-        setIsVisited(false);
-        if (onVisitedChange) {
-          onVisitedChange(businessId, false);
-        }
-      } else {
-        // Add to visited (using default 4 stars)
-        await axios.post(`${apiBase}/users/${userId}/visited`, {
-          business_id: businessId,
-          stars: 4,
-        });
-        setIsVisited(true);
-        if (onVisitedChange) {
-          onVisitedChange(businessId, true);
-        }
+      await axios.post(`${apiBase}/users/${userId}/visited`, {
+        business_id: businessId,
+        stars: value,
+      });
+      setIsVisited(true);
+      if (onVisitedChange) {
+        onVisitedChange(businessId, true, value);
       }
     } catch (err) {
-      console.error("Failed to toggle visited", err);
+      console.error("Failed to set visited rating", err);
+    }
+  };
+
+  const handleVisitedRemove = async () => {
+    if (!userId || !businessId) return;
+    try {
+      await axios.delete(`${apiBase}/users/${userId}/visited/${businessId}`);
+      setIsVisited(false);
+      setVisitedRating(null);
+      if (onVisitedChange) {
+        onVisitedChange(businessId, false, null);
+      }
+    } catch (err) {
+      console.error("Failed to remove visited", err);
     }
   };
 
@@ -375,6 +384,20 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
                 flexWrap: "wrap"
               }}
             >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+                  Visited Rating
+                </Typography>
+                <Rating
+                  name="visited-rating"
+                  value={visitedRating}
+                  onChange={handleVisitedRatingChange}
+                  max={5}
+                  precision={1}
+                  icon={<StarIcon fontSize="inherit" />}
+                  emptyIcon={<StarIcon fontSize="inherit" sx={{ opacity: 0.3 }} />}
+                />
+              </Box>
               <Button
                 variant={isFavorite ? "contained" : "outlined"}
                 color={isFavorite ? "error" : "primary"}
@@ -394,7 +417,8 @@ export default function RestaurantCard({ businessId, inDialog = false, onFavorit
                 variant={isVisited ? "contained" : "outlined"}
                 color={isVisited ? "success" : "primary"}
                 startIcon={isVisited ? <CheckCircleIcon /> : <CheckCircleOutlineIcon />}
-                onClick={handleVisitedToggle}
+                onClick={isVisited ? handleVisitedRemove : () => handleVisitedRatingChange(null, visitedRating)}
+                disabled={!isVisited && !visitedRating}
                 size="large"
                 sx={{ 
                   borderRadius: 2,

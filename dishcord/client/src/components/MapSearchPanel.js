@@ -1,5 +1,6 @@
 import React from "react";
 import { Paper, Typography, Box, TextField, Button, Chip, CircularProgress } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 const RADIUS_OPTIONS = [1, 5, 10, 20];
 
@@ -13,6 +14,7 @@ export default function MapSearchPanel({
   loading, 
   showResults 
 }) {
+  const theme = useTheme();
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       onSearch();
@@ -25,14 +27,14 @@ export default function MapSearchPanel({
       sx={{ 
         p: 3, 
         mb: 2,
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
         color: "white"
       }}
     >
-      <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold" }}>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: "bold", color: "#FFFFFF" }}>
         🗺️ Discover Hidden Gems
       </Typography>
-      <Typography variant="body1" sx={{ mb: 3, opacity: 0.9 }}>
+      <Typography variant="body1" sx={{ mb: 3, opacity: 0.95, color: "#FFFFFF" }}>
         Search by address, city, or zip code to find overrated and underrated restaurants near you
       </Typography>
 
@@ -49,7 +51,7 @@ export default function MapSearchPanel({
             bgcolor: "rgba(255,255,255,0.9)",
             borderRadius: 1
           }}
-          InputLabelProps={{ style: { color: "#333" } }}
+          InputLabelProps={{ style: { color: theme.palette.text.secondary } }}
         />
 
         <TextField
@@ -63,7 +65,7 @@ export default function MapSearchPanel({
             bgcolor: "rgba(255,255,255,0.9)",
             borderRadius: 1
           }}
-          InputLabelProps={{ style: { color: "#333" } }}
+          InputLabelProps={{ style: { color: theme.palette.text.secondary } }}
           SelectProps={{ native: true }}
         >
           {RADIUS_OPTIONS.map(val => (
@@ -77,9 +79,9 @@ export default function MapSearchPanel({
           onClick={onSearch}
           disabled={loading}
           sx={{
-            bgcolor: "white",
-            color: "#667eea",
-            "&:hover": { bgcolor: "#f0f0f0" },
+            bgcolor: theme.palette.secondary.main,
+            color: "#FFFFFF",
+            "&:hover": { bgcolor: theme.palette.secondary.dark },
             fontWeight: "bold",
             px: 4
           }}
@@ -94,7 +96,7 @@ export default function MapSearchPanel({
             sx={{
               borderColor: "white",
               color: "white",
-              "&:hover": { borderColor: "#f0f0f0", bgcolor: "rgba(255,255,255,0.1)" }
+              "&:hover": { borderColor: "white", bgcolor: "rgba(255,255,255,0.1)" }
             }}
           >
             Clear
@@ -107,17 +109,17 @@ export default function MapSearchPanel({
           <Chip
             icon={<span style={{ fontSize: "20px" }}>🟢</span>}
             label="Hidden Gem"
-            sx={{ bgcolor: "rgba(255,255,255,0.2)", color: "white", fontWeight: "bold" }}
+            sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "#FFFFFF", fontWeight: "bold", border: "1px solid rgba(255,255,255,0.3)" }}
           />
           <Chip
             icon={<span style={{ fontSize: "20px" }}>🔴</span>}
             label="Overrated"
-            sx={{ bgcolor: "rgba(255,255,255,0.2)", color: "white", fontWeight: "bold" }}
+            sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "#FFFFFF", fontWeight: "bold", border: "1px solid rgba(255,255,255,0.3)" }}
           />
           <Chip
             icon={<span style={{ fontSize: "20px" }}>🟡</span>}
             label="Typical"
-            sx={{ bgcolor: "rgba(255,255,255,0.2)", color: "white", fontWeight: "bold" }}
+            sx={{ bgcolor: "rgba(255,255,255,0.15)", color: "#FFFFFF", fontWeight: "bold", border: "1px solid rgba(255,255,255,0.3)" }}
           />
         </Box>
       )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import axios from "axios";
 import {
   AppBar,
@@ -16,21 +17,13 @@ import {
   Paper,
   Pagination,
 } from "@mui/material";
-import RestaurantIcon from "@mui/icons-material/Restaurant";
 import SearchIcon from "@mui/icons-material/Search";
 import config from "../config.json";
 import CityCard from "../components/CityCard";
 
-// Capitalize first letter of each word
-const capitalizeCityName = (name) => {
-  return name
-    .split(" ")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-};
-
 export default function ExploreCitiesPage() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState(null);
   const [cities, setCities] = useState([]);
@@ -47,7 +40,13 @@ export default function ExploreCitiesPage() {
     setLoading(true);
     try {
       const response = await axios.get(`${apiBase}/all-cities`);
-      const sortedCities = response.data.sort();
+      const cityList = response.data || [];
+      const sortedCities = cityList
+        .filter((c) => c.city)
+        .sort((a, b) => {
+          const cityCompare = a.city.localeCompare(b.city);
+          return cityCompare !== 0 ? cityCompare : (a.state || "").localeCompare(b.state || "");
+        });
       setCities(sortedCities);
       setFilteredCities(sortedCities);
       setError(null);
@@ -85,12 +84,13 @@ export default function ExploreCitiesPage() {
   const handleSearch = (e) => {
     const value = e.target.value.toLowerCase();
     setSearchTerm(value);
-    
-    const filtered = cities.filter((city) =>
-      city.toLowerCase().includes(value)
-    );
+
+    const filtered = cities.filter(({ city, state }) => {
+      const label = `${city || ""} ${state || ""}`.toLowerCase();
+      return label.includes(value);
+    });
     setFilteredCities(filtered);
-    setCurrentPage(1); // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   const handleReset = () => {
@@ -114,10 +114,12 @@ export default function ExploreCitiesPage() {
   if (error && !loading) {
     return (
       <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-        <AppBar position="static">
+        <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
           <Toolbar>
-            <RestaurantIcon sx={{ mr: 2 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+              <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </Box>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
               Dishcord
             </Typography>
             <Button color="inherit" onClick={() => navigate("/")}>
@@ -160,10 +162,12 @@ export default function ExploreCitiesPage() {
   return (
     <Box sx={{ flexGrow: 1, minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
       {/* Navigation Bar */}
-      <AppBar position="static">
+      <AppBar position="static" sx={{ backgroundColor: theme.palette.primary.main }}>
         <Toolbar>
-          <RestaurantIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", width: 40, height: 40 }}>
+            <img src="/logo.png" alt="Dishcord" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          </Box>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, color: "#FFFFFF" }}>
             Dishcord
           </Typography>
           <Button color="inherit" onClick={() => navigate("/")}>
@@ -240,10 +244,10 @@ export default function ExploreCitiesPage() {
         ) : filteredCities.length > 0 ? (
           <>
             <Grid container spacing={3}>
-              {paginatedCities.map((city) => (
-                <Grid item xs={12} sm={6} md={4} key={city}>
+              {paginatedCities.map((cityObj, idx) => (
+                <Grid item xs={12} sm={6} md={4} key={`${cityObj.city}-${cityObj.state}-${idx}`}>
                   <CityCard
-                    cityName={capitalizeCityName(city)}
+                    city={cityObj}
                   />
                 </Grid>
               ))}
