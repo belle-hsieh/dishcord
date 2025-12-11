@@ -128,6 +128,9 @@ export default function ExploreCitiesPage() {
             <Button color="inherit" onClick={() => navigate("/explore-cities")}>
               Cities
             </Button>
+            <Button color="inherit" onClick={() => navigate("/restaurant")}>
+              Restaurants
+            </Button>
             <Button color="inherit" onClick={() => navigate("/map")}>
               Map
             </Button>
@@ -176,8 +179,14 @@ export default function ExploreCitiesPage() {
           <Button color="inherit" onClick={() => navigate("/explore-cities")}>
             Cities
           </Button>
+          <Button color="inherit" onClick={() => navigate("/restaurant")}>
+            Restaurants
+          </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/leaderboard")}>
+            Leaderboard
           </Button>
           <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
             Profile

@@ -26,10 +26,10 @@ app.get('/users/:id/visited', routes.list_visited);
 
 // Michelin/Yelp Routes
 app.get('/michelin-yelp-matches', routes.michelin_yelp_matches);
-app.get('/top-restaurants/:city', routes.top_restaurants_by_city);
 app.get('/nearby-restaurants', routes.nearby_restaurants);
 app.get('/michelin-vs-yelp-stats', routes.michelin_vs_yelp_stats);
 app.get('/restaurants-by-zip', routes.restaurants_by_zip);
+app.get('/search-restaurants', routes.search_restaurants_by_name);
 app.get('/michelin-yelp-rating-comparison', routes.michelin_yelp_rating_comparison);
 app.get('/restaurant-ratings-over-time/:city', routes.restaurant_ratings_over_time);
 app.get('/cuisine-ratings/:city', routes.cuisine_ratings);

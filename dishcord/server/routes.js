@@ -34,7 +34,7 @@ const michelin_engagement_stats = async function(req, res) {
     `
     WITH photo_counts AS (
       SELECT p.business_id, COUNT(p.photo_id) AS num_photos
-      FROM photos p
+      FROM yelpphotos p
       GROUP BY p.business_id
     ),
     review_counts AS (
@@ -801,40 +801,6 @@ const michelin_yelp_matches = async function(req, res) {
   );
 };
 
-// Route: GET /top-restaurants/:city
-// Description: Get top 10 restaurants in a city by review count
-const top_restaurants_by_city = async function(req, res) {
-  const city = req.params.city;
-  
-  if (!city) {
-    return res.status(400).json({ error: 'Missing required parameter: city' });
-  }
-  
-  connection.query(
-    `
-    SELECT
-        business_id,
-        name,
-        address,
-        review_count,
-        stars
-    FROM yelprestaurantinfo
-    WHERE city = $1
-    ORDER BY review_count DESC
-    LIMIT 10
-    `,
-    [city],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
-
 // Route: GET /nearby-restaurants
 // Description: Find highly-rated restaurants near user location
 const nearby_restaurants = async function(req, res) {
@@ -950,53 +916,6 @@ const michelin_vs_yelp_stats = async function(req, res) {
   );
 };
 
-// Route: GET /restaurants-by-zip
-// Description: Find restaurants by zip code and optional category filter
-const restaurants_by_zip = async function(req, res) {
-  const zip_code = req.query.zip_code || req.body.zip_code;
-  const category = req.query.category || req.body.category;
-  
-  if (!zip_code) {
-    return res.status(400).json({ error: 'Missing required parameter: zip_code' });
-  }
-  
-  connection.query(
-    `
-    SELECT DISTINCT
-        r.name,
-        l.latitude,
-        l.longitude
-    FROM yelprestaurantinfo r
-    JOIN yelplocationinfo l
-        ON r.address = l.address
-       AND r.city = l.city
-       AND r.state = l.state
-       AND r.postal_code = l.postal_code
-    LEFT JOIN yelprestaurantcategories c
-        ON r.business_id = c.business_id
-    WHERE l.postal_code = $1
-      AND (
-            $2::text IS NULL
-            OR EXISTS (
-                SELECT 1
-                FROM yelprestaurantcategories c2
-                WHERE c2.business_id = r.business_id
-                  AND LOWER(c2.category) LIKE '%' || LOWER($2) || '%'
-            )
-          )
-    `,
-    [zip_code, category],
-    (err, data) => {
-      if (err) {
-        console.log(err);
-        res.status(500).json([]);
-      } else {
-        res.json(data.rows);
-      }
-    }
-  );
-};
-
 // Route: GET /michelin-yelp-rating-comparison
 // Description: Compare Michelin scores with Yelp ratings by city
 const michelin_yelp_rating_comparison = async function(req, res) {
@@ -1055,10 +974,141 @@ const michelin_yelp_rating_comparison = async function(req, res) {
   );
 };
 
+// Route: GET /search-restaurants
+// Description: Search restaurants by partial name with pagination
+const search_restaurants_by_name = async function(req, res) {
+  const name = req.query.name || req.body?.name;
+  const page = parseInt(req.query.page, 10) || 1;
+  const pageSize = parseInt(req.query.page_size, 10) || 7;
 
+  if (!name || name.trim() === "") {
+    return res.status(400).json({ error: "Missing required parameter: name" });
+  }
+
+  const offset = (page - 1) * pageSize;
+
+  connection.query(
+    `
+    WITH filtered AS (
+      SELECT
+        r.business_id,
+        r.name,
+        r.address,
+        r.city,
+        r.state,
+        r.stars,
+        r.review_count
+      FROM yelprestaurantinfo r
+      WHERE LOWER(TRIM(r.name)) LIKE '%' || LOWER(TRIM($1)) || '%'
+    ),
+    counted AS (
+      SELECT *, COUNT(*) OVER() AS total_count FROM filtered
+    )
+    SELECT
+      business_id,
+      name,
+      address,
+      city,
+      state,
+      stars,
+      review_count,
+      total_count
+    FROM counted
+    ORDER BY review_count DESC NULLS LAST
+    LIMIT $2 OFFSET $3
+    `,
+    [name, pageSize, offset],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
+
+
+
+// Route: GET /restaurants-by-zip
+// Description: Get restaurants in a ZIP code with optional category filter and pagination
+const restaurants_by_zip = async function(req, res) {
+  const zip_code = req.query.zip_code || req.body.zip_code;
+  const category = req.query.category || req.body.category;
+  const page = parseInt(req.query.page, 10) || 1;
+  const pageSize = parseInt(req.query.page_size, 10) || 7;
+  
+  if (!zip_code) {
+    return res.status(400).json({ error: 'Missing required parameter: zip_code' });
+  }
+
+  const offset = (page - 1) * pageSize;
+  
+  connection.query(
+    `
+    WITH filtered AS (
+      SELECT DISTINCT
+          r.business_id,
+          r.name,
+          r.address,
+          r.city,
+          r.state,
+          r.stars,
+          r.review_count,
+          l.latitude,
+          l.longitude
+      FROM yelprestaurantinfo r
+      JOIN yelplocationinfo l
+          ON r.address = l.address
+         AND r.city = l.city
+         AND r.state = l.state
+         AND r.postal_code = l.postal_code
+      LEFT JOIN yelprestaurantcategories c
+          ON r.business_id = c.business_id
+      WHERE l.postal_code = $1
+        AND (
+              $2::text IS NULL
+              OR EXISTS (
+                  SELECT 1
+                  FROM yelprestaurantcategories c2
+                  WHERE c2.business_id = r.business_id
+                    AND LOWER(c2.category) LIKE '%' || LOWER($2) || '%'
+              )
+            )
+    ),
+    counted AS (
+      SELECT *, COUNT(*) OVER() AS total_count FROM filtered
+    )
+    SELECT
+      business_id,
+      name,
+      address,
+      city,
+      state,
+      stars,
+      review_count,
+      latitude,
+      longitude,
+      total_count
+    FROM counted
+    ORDER BY review_count DESC NULLS LAST
+    LIMIT $3 OFFSET $4
+    `,
+    [zip_code, category, pageSize, offset],
+    (err, data) => {
+      if (err) {
+        console.log(err);
+        res.status(500).json([]);
+      } else {
+        res.json(data.rows);
+      }
+    }
+  );
+};
 
 // Route: GET /restaurant-ratings-over-time/:city
-// Description: Track average restaurant ratings by year for a city
+// Description: Track average restaurant ratings by review year for a city
 const restaurant_ratings_over_time = async function(req, res) {
   const city = req.params.city;
   
@@ -1068,26 +1118,17 @@ const restaurant_ratings_over_time = async function(req, res) {
   
   connection.query(
     `
-    WITH reviews_with_year AS (
-        SELECT
-            r.business_id,
-            yr.city,
-            yr.state,
-            EXTRACT(YEAR FROM r.date) AS review_year,
-            r.stars
-        FROM yelprestaurantinfo yr
-        JOIN yelpreviewinfo r
-            ON yr.business_id = r.business_id
-    )
     SELECT
-        city,
-        state,
-        review_year,
-        AVG(stars) AS avg_yelp_rating
-    FROM reviews_with_year
-    WHERE city = $1
-    GROUP BY city, state, review_year
-    ORDER BY city, state, review_year
+      EXTRACT(YEAR FROM r.date)::int AS year,
+      AVG(r.stars)::float AS avg_rating,
+      COUNT(*) AS review_count
+    FROM yelpreviewinfo r
+    JOIN yelprestaurantinfo ri
+      ON r.business_id = ri.business_id
+    WHERE LOWER(TRIM(ri.city)) = LOWER(TRIM($1))
+      AND r.date IS NOT NULL
+    GROUP BY year
+    ORDER BY year
     `,
     [city],
     (err, data) => {
@@ -1100,9 +1141,6 @@ const restaurant_ratings_over_time = async function(req, res) {
     }
   );
 };
-
-// Route: GET /cuisine-ratings/:city
-// Description: Get average rating by cuisine type in a city
 const cuisine_ratings = async function(req, res) {
   const city = req.params.city;
   
@@ -1900,7 +1938,6 @@ module.exports = {
     remove_visited,
     list_visited,
     michelin_yelp_matches,
-    top_restaurants_by_city,
     nearby_restaurants,
     michelin_vs_yelp_stats,
     restaurants_by_zip,
@@ -1911,6 +1948,7 @@ module.exports = {
     restaurant_ratings_over_time,
     cuisine_ratings,
     get_restaurant,
+    search_restaurants_by_name,
     list_business_photos,
     fetch_image,
     michelin_engagement_stats,

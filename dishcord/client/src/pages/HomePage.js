@@ -19,6 +19,8 @@ import SearchIcon from "@mui/icons-material/Search";
 import MapIcon from "@mui/icons-material/Map";
 import PersonIcon from "@mui/icons-material/Person";
 import RoomServiceIcon from "@mui/icons-material/RoomService";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
+import LeaderboardIcon from "@mui/icons-material/Leaderboard";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -59,11 +61,25 @@ export default function HomePage() {
       bgColor: theme.palette.primary.main,
     },
     {
+      title: "Explore Restaurants",
+      description: "Browse and discover individual restaurants",
+      icon: <RestaurantIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
+      onClick: () => navigate("/restaurant"),
+      bgColor: theme.palette.warning.main,
+    },
+    {
       title: "View Map",
       description: "Find restaurants near you on an interactive map",
       icon: <MapIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
       onClick: () => navigate("/map"),
       bgColor: theme.palette.success.main,
+    },
+    {
+      title: "Leaderboard",
+      description: "View top restaurants and influential users",
+      icon: <LeaderboardIcon sx={{ fontSize: 48, color: "#FFFFFF" }} />,
+      onClick: () => navigate("/leaderboard"),
+      bgColor: theme.palette.info.main,
     },
     {
       title: "Your Profile",
@@ -91,8 +107,14 @@ export default function HomePage() {
           <Button color="inherit" onClick={() => navigate("/explore-cities")}>
             Cities
           </Button>
+          <Button color="inherit" onClick={() => navigate("/restaurant")}>
+            Restaurants
+          </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/leaderboard")}>
+            Leaderboard
           </Button>
           <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
             Profile

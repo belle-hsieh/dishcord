@@ -15,6 +15,9 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  Grid,
+  Pagination,
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import StarIcon from "@mui/icons-material/Star";
@@ -28,8 +31,16 @@ export default function RestaurantPage() {
   const theme = useTheme();
   const location = useLocation();
 
-  const [citySearch, setCitySearch] = useState("");
-  const [topRestaurants, setTopRestaurants] = useState([]);
+  const [searchName, setSearchName] = useState("");
+  const [searchZip, setSearchZip] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const searchPageSize = 20;
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [lastSearchType, setLastSearchType] = useState(null); // "name" | "zip"
+  const [lastSearchValue, setLastSearchValue] = useState("");
   const [michelinList, setMichelinList] = useState([]);
   const [michelinPage, setMichelinPage] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -65,11 +76,9 @@ export default function RestaurantPage() {
   }, [apiBase]);
 
   useEffect(() => {
-    if (id) {
-
-      return;
+    if (!id) {
+      fetchMichelin();
     }
-    fetchMichelin();
   }, [id, fetchMichelin]);
 
   const fetchRestaurantById = useCallback(async (businessId) => {
@@ -120,20 +129,52 @@ export default function RestaurantPage() {
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [location.hash, topRestaurants, michelinList]);
+  }, [location.hash, searchResults, michelinList]);
+
+  const runSearch = useCallback(async (pageToFetch = 1, type, value) => {
+    if (!type || !value) return;
+    setSearchLoading(true);
+    setSearchError("");
+    try {
+      let url = "";
+      if (type === "name") {
+        url = `${apiBase}/search-restaurants?name=${encodeURIComponent(value)}&page=${pageToFetch}&page_size=${searchPageSize}`;
+      } else if (type === "zip") {
+        url = `${apiBase}/restaurants-by-zip?zip_code=${encodeURIComponent(value)}&page=${pageToFetch}&page_size=${searchPageSize}`;
+      }
+
+      const res = await axios.get(url);
+      const rows = res.data || [];
+      setSearchResults(rows);
+      const total = rows.length > 0 && rows[0].total_count ? Number(rows[0].total_count) : 0;
+      setSearchTotal(total);
+      setSearchPage(pageToFetch);
+      setLastSearchType(type);
+      setLastSearchValue(value);
+    } catch (err) {
+      console.error("Error searching restaurants:", err);
+      setSearchResults([]);
+      setSearchTotal(0);
+      setSearchError("Failed to load restaurants. Please try again.");
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [apiBase]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!citySearch.trim()) return;
-    try {
-      const res = await axios.get(
-        `${apiBase}/top-restaurants/${encodeURIComponent(citySearch.trim())}`
-      );
-      setTopRestaurants(res.data || []);
-    } catch (err) {
-      console.error("Error fetching top restaurants:", err);
-      setTopRestaurants([]);
-    }
+    const name = searchName.trim();
+    const zip = searchZip.trim();
+    const type = name ? "name" : zip ? "zip" : null;
+    const value = name || zip;
+    if (!type) return;
+    setSearchPage(1);
+    runSearch(1, type, value);
+  };
+
+  const handleSearchPageChange = (_event, pageValue) => {
+    if (!lastSearchType || !lastSearchValue) return;
+    runSearch(pageValue, lastSearchType, lastSearchValue);
   };
 
   const renderNav = () => (
@@ -148,11 +189,17 @@ export default function RestaurantPage() {
         <Button color="inherit" onClick={() => navigate("/")}>
           Home
         </Button>
-        <Button color="inherit" onClick={() => navigate("/city/New York")}>
+        <Button color="inherit" onClick={() => navigate("/explore-cities")}>
           Cities
+        </Button>
+        <Button color="inherit" onClick={() => navigate("/restaurant")}>
+          Restaurants
         </Button>
         <Button color="inherit" onClick={() => navigate("/map")}>
           Map
+        </Button>
+        <Button color="inherit" onClick={() => navigate("/leaderboard")}>
+          Leaderboard
         </Button>
         <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
           Profile
@@ -187,12 +234,12 @@ export default function RestaurantPage() {
       {renderNav()}
 
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper id="top-restaurants" elevation={3} sx={{ p: 4, mb: 3 }}>
+        <Paper id="search-restaurants" elevation={3} sx={{ p: 4, mb: 3 }}>
           <Typography variant="h5" component="h2" gutterBottom>
-            Top Restaurants
+            Search Restaurants
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Find the most reviewed restaurants in any city
+            Search by name or by ZIP code (20 results per page).
           </Typography>
 
           <Box
@@ -204,52 +251,70 @@ export default function RestaurantPage() {
               size="small"
               fullWidth
               variant="outlined"
-              placeholder="Enter city name"
-              value={citySearch}
-              onChange={(e) => setCitySearch(e.target.value)}
+              placeholder="Restaurant name"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+            />
+            <TextField
+              size="small"
+              fullWidth
+              variant="outlined"
+              placeholder="ZIP code"
+              value={searchZip}
+              onChange={(e) => setSearchZip(e.target.value)}
             />
             <Button type="submit" variant="contained" startIcon={<SearchIcon />}>
               Search
             </Button>
           </Box>
 
-          {topRestaurants.length > 0 && (
-            <List>
-              {topRestaurants.map((r, idx) => (
-                <ListItemButton
-                  key={idx}
-                  onClick={() => handleRestaurantClick(r.business_id)}
-                  disabled={!r.business_id}
-                >
-                  <ListItemText
-                    primary={r.name}
-                    secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {r.address}
-                        </Typography>
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-                          <StarIcon sx={{ color: "#ffc107", fontSize: 16 }} />
-                          <Typography variant="body2" color="text.secondary">
-                            {r.stars ? Number(r.stars).toFixed(1) : "N/A"} •{" "}
-                            {r.review_count?.toLocaleString?.() || 0} reviews
-                          </Typography>
-                        </Stack>
-                      </Box>
-                    }
+          {searchLoading && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+              <CircularProgress size={28} />
+            </Box>
+          )}
+
+          {searchError && (
+            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+              {searchError}
+            </Typography>
+          )}
+
+          {!searchLoading && searchResults.length === 0 && !searchError && (
+            <Typography variant="body2" color="text.secondary">
+              No results yet. Try searching by restaurant name or ZIP code.
+            </Typography>
+          )}
+
+          {searchResults.length > 0 && (
+            <Box>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                {searchResults.map((r) => (
+                  <Grid item xs={12} sm={6} md={4} key={r.business_id || r.name}>
+                    <RestaurantCard businessId={r.business_id} />
+                  </Grid>
+                ))}
+              </Grid>
+              {searchTotal > searchPageSize && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                  <Pagination
+                    count={Math.ceil(searchTotal / searchPageSize)}
+                    page={searchPage}
+                    onChange={handleSearchPageChange}
+                    color="primary"
                   />
-                </ListItemButton>
-              ))}
-            </List>
+                </Box>
+              )}
+            </Box>
           )}
         </Paper>
 
         <Paper id="michelin" elevation={3} sx={{ p: 4 }}>
           <Typography variant="h5" component="h2" gutterBottom>
-            Michelin Guide
+            Michelin & Yelp Matches
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Discover Michelin-starred restaurants
+            Discover restaurants that appear in both Yelp and the Michelin Guide
           </Typography>
 
           {michelinList.length > 0 ? (

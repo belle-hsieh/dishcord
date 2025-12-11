@@ -182,8 +182,14 @@ export default function LoginPage() {
           <Button color="inherit" onClick={() => navigate("/city/New York")}>
             Cities
           </Button>
+          <Button color="inherit" onClick={() => navigate("/restaurant")}>
+            Restaurants
+          </Button>
           <Button color="inherit" onClick={() => navigate("/map")}>
             Map
+          </Button>
+          <Button color="inherit" onClick={() => navigate("/leaderboard")}>
+            Leaderboard
           </Button>
           <Button color="inherit" onClick={() => navigate(userId ? `/user/${userId}` : "/login")}>
             Profile

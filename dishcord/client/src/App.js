@@ -5,6 +5,7 @@ import HomePage from "./pages/HomePage";
 import CityProfilePage from "./pages/CityProfilePage";
 import ExploreCitiesPage from "./pages/ExploreCitiesPage";
 import MapPage from "./pages/MapPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import RestaurantPage from "./pages/RestaurantPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import LoginPage from "./pages/LoginPage";
@@ -19,6 +20,8 @@ function App() {
         <Route path="/explore-cities" element={<ExploreCitiesPage />} />
         <Route path="/city/:cityName" element={<CityProfilePage />} />
         <Route path="/map" element={<MapPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
+        <Route path="/restaurant" element={<RestaurantPage />} />
         <Route path="/restaurants" element={<RestaurantPage />} />
         <Route path="/restaurant/:id" element={<RestaurantPage />} />
         <Route path="/user/:id" element={<UserProfilePage />} />
