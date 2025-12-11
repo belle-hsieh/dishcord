@@ -264,48 +264,7 @@ const hidden_gems = async function(req, res) {
 // Description: Find the user who has reviewed the highest number of distinct cuisines
 const most_adventurous_user = async function(req, res) {
   connection.query(
-    `
-    WITH user_reviews AS (
-      SELECT
-        rv.user_id,
-        rv.business_id
-      FROM yelpreviewinfo rv
-    ),
-    user_cuisines AS (
-      SELECT
-        ur.user_id,
-        LOWER(TRIM(rc.category)) AS cuisine
-      FROM user_reviews ur
-      JOIN yelprestaurantcategories rc
-        ON ur.business_id = rc.business_id
-    ),
-    cleaned AS (
-      SELECT user_id, cuisine
-      FROM user_cuisines
-      WHERE cuisine IS NOT NULL AND cuisine <> ''
-    ),
-    cuisine_counts AS (
-      SELECT
-        user_id,
-        COUNT(DISTINCT cuisine) AS num_cuisines
-      FROM cleaned
-      GROUP BY user_id
-    )
-    SELECT
-      cc.user_id,
-      yi.name AS user_name,
-      cc.num_cuisines
-    FROM cuisine_counts cc
-    JOIN yelpuserinfo yi
-      ON cc.user_id = yi.user_id
-    WHERE cc.num_cuisines >= ALL (
-      SELECT num_cuisines
-      FROM cuisine_counts cc2
-      WHERE cc2.user_id <> cc.user_id
-    )
-    ORDER BY cc.num_cuisines DESC
-    LIMIT 1
-    `,
+    `SELECT * FROM mv_most_adventurous_user`,
     (err, data) => {
       if (err) {
         console.log(err);
@@ -995,6 +954,7 @@ const get_restaurant = async function(req, res) {
 // Route: GET /map-restaurants
 // Description: Get restaurants for map within certain radius of addy w/ rating status, photos, reviews, and categories
 const map_restaurants = async function(req, res) {
+  const start = Date.now();
   const user_lat = parseFloat(req.query.latitude);
   const user_long = parseFloat(req.query.longitude);
   const radius = parseFloat(req.query.radius) || 5; // Default 5 miles
@@ -1003,10 +963,18 @@ const map_restaurants = async function(req, res) {
   if (isNaN(user_lat) || isNaN(user_long)) {
     return res.status(400).json({ error: 'Missing or invalid latitude/longitude' });
   }
+
+  // Pre-compute bounding box
+  const lat_min = user_lat - (radius / 69.0);
+  const lat_max = user_lat + (radius / 69.0);
+  const long_min = user_long - (radius / (69.0 * Math.cos(user_lat * Math.PI / 180)));
+  const long_max = user_long + (radius / (69.0 * Math.cos(user_lat * Math.PI / 180)));
+
+  console.log('Pre-query:', Date.now() - start, 'ms');
   
   connection.query(`
     WITH restaurant_base AS (
-      SELECT DISTINCT
+      SELECT
         r.business_id,
         r.name,
         r.address,
@@ -1018,9 +986,9 @@ const map_restaurants = async function(req, res) {
         l.longitude,
         r.postal_code,
         (3959 * acos(
-           cos(radians($1)) * cos(radians(l.latitude)) *
-           cos(radians(l.longitude) - radians($2)) +
-           sin(radians($1)) * sin(radians(l.latitude))
+          cos(radians($1)) * cos(radians(l.latitude)) *
+          cos(radians(l.longitude) - radians($2)) +
+          sin(radians($1)) * sin(radians(l.latitude))
         )) AS distance
       FROM yelprestaurantinfo r
       JOIN yelplocationinfo l
@@ -1028,14 +996,14 @@ const map_restaurants = async function(req, res) {
         AND r.city = l.city
         AND r.state = l.state
         AND r.postal_code = l.postal_code
-      WHERE 
-        l.latitude BETWEEN $1 - ($3 / 69.0) AND $1 + ($3 / 69.0)
-        AND l.longitude BETWEEN $2 - ($3 / (69.0 * cos(radians($1)))) AND $2 + ($3 / (69.0 * cos(radians($1))))
+      WHERE
+        l.latitude BETWEEN $4 AND $5
+        AND l.longitude BETWEEN $6 AND $7
     ),
     filtered_restaurants AS (
       SELECT * FROM restaurant_base
       WHERE distance <= $3
-      LIMIT 100
+      LIMIT 30
     ),
     city_stats AS (
       SELECT
@@ -1058,44 +1026,44 @@ const map_restaurants = async function(req, res) {
       JOIN city_stats cs ON fr.city = cs.city
     ),
     categories AS (
-      SELECT 
-        business_id, 
+      SELECT
+        business_id,
         array_agg(DISTINCT category) AS categories
       FROM yelprestaurantcategories
       WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
       GROUP BY business_id
     ),
     restaurant_photos AS (
-    SELECT 
-      yp.business_id, 
-      json_agg(
-        json_build_object(
-          'photo_id', yp.photo_id, 
-          'caption', yp.caption, 
-          'label', yp.label,
-          'aws_url', yp.aws_url
-        )
-      ) AS photos
-    FROM (
-      SELECT DISTINCT ON (business_id, photo_id) * FROM yelpphotos 
-      WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
-    ) yp
-    WHERE yp.aws_url IS NOT NULL
-    GROUP BY yp.business_id
-  ),
-    restaurant_reviews AS (
-      SELECT 
-        r.business_id, 
+      SELECT
+        yp.business_id,
         json_agg(
           json_build_object(
-            'review_id', r.review_id, 
-            'stars', r.stars, 
-            'text', r.text, 
+            'photo_id', yp.photo_id,
+            'caption', yp.caption,
+            'label', yp.label,
+            'aws_url', yp.aws_url
+          )
+        ) AS photos
+      FROM (
+        SELECT * FROM yelpphotos
+        WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
+      ) yp
+      WHERE yp.aws_url IS NOT NULL
+      GROUP BY yp.business_id
+    ),
+    restaurant_reviews AS (
+      SELECT
+        r.business_id,
+        json_agg(
+          json_build_object(
+            'review_id', r.review_id,
+            'stars', r.stars,
+            'text', r.text,
             'date', r.date
           ) ORDER BY r.useful DESC
         ) AS reviews
       FROM (
-        SELECT DISTINCT ON (business_id, review_id) * FROM yelpreviewinfo 
+        SELECT * FROM yelpreviewinfo
         WHERE business_id IN (SELECT business_id FROM restaurants_with_status)
       ) r
       GROUP BY r.business_id
@@ -1132,8 +1100,10 @@ const map_restaurants = async function(req, res) {
     LEFT JOIN restaurant_photos rp ON rws.business_id = rp.business_id
     LEFT JOIN restaurant_reviews rr ON rws.business_id = rr.business_id
     LEFT JOIN michelin_data md ON rws.business_id = md.business_id
-    ORDER BY rws.distance ASC
-  `, [user_lat, user_long, radius], (err, data) => {
+    ORDER BY rws.distance;
+
+  `, [user_lat, user_long, radius, lat_min, lat_max, long_min, long_max], (err, data) => {
+    console.log('Query complete:', Date.now() - start, 'ms');
     if (err) {
       console.error(err);
       res.status(500).json([]);
@@ -1141,7 +1111,7 @@ const map_restaurants = async function(req, res) {
       res.json(data.rows);
     }
   });
-};  
+};
   
 
 

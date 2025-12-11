@@ -10,7 +10,7 @@ import RestaurantMapView from "../components/RestaurantMapView";
 import RestaurantDetailDialog from "../components/RestaurantDetailDialog";
 import { geocodeAddress } from "../utils/mapUtils";
 
-const DEFAULT_CENTER = { lat: 43.622879, lng: -116.240469 };
+const DEFAULT_CENTER = { lat: 40.004379, lng: -75.218198 };
 const GOOGLE_MAPS_API_KEY = "AIzaSyBed2vHtWoi0SlRf78shBVZnrNdirgBrJI";
 
 export default function MapPage() {
