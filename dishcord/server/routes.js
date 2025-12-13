@@ -30,6 +30,7 @@ connection.connect((err) => err && console.log(err));
 // Route: GET /michelin-engagement-stats
 // Description: Compare customer engagement (photos/reviews ratio) between Michelin and non-Michelin restaurants
 // Where it's used: the LeaderBoard Page, specifically the Michelin Engagement section
+// pretty simple query, just using the materialized view we made
 const michelin_engagement_stats = async function(req, res) {
   connection.query(
     `
@@ -56,6 +57,7 @@ const michelin_engagement_stats = async function(req, res) {
 // Route: GET /city-stats/:city/:state?
 // Description: Get statistics for a city, bridging Yelp and Michelin via Coordinates
 // WHere it's used: The city insights page, specifically the city stats section
+// this one's kinda complex - had to figure out how to match michelin and yelp data by coordinates
 const city_stats = async function(req, res) {
   const city = req.params.city;
   const state = req.params.state; // Optional (might be null for Int'l cities)
@@ -67,7 +69,7 @@ const city_stats = async function(req, res) {
   connection.query(
 
     `
-    -- This CTE gets all the restaurants in the city (and optionally state) from Yelp data
+    -- first grab all restaurants in the city
     WITH city_restaurants AS (
       SELECT
         r.business_id,
@@ -85,7 +87,8 @@ const city_stats = async function(req, res) {
       WHERE LOWER(TRIM(r.city)) = LOWER(TRIM($1))
           AND ($2::VARCHAR IS NULL OR LOWER(TRIM(r.state)) = LOWER(TRIM($2)))
     ),
-    -- Gets all the Michelin restaurants that match the Yelp restaurants in the city
+    -- then try to match them with michelin data using lat/long
+    -- using 0.0005 threshold seems to work well
     michelin_matches AS (
       SELECT DISTINCT
         cr.business_id,
@@ -200,6 +203,9 @@ const city_top_restaurants = async function(req, res) {
 // Description: Find underrated restaurants (high rating, low review count) vs peers in a city
 /* Where it's used: The city insights page, specifically the hidden gems section
 also in the restaurants lists, and map page. */
+
+// this query is cool cuz it labels restaurants as hidden gems, overhyped, or typical
+// based on how they compare to the city average
 const hidden_gems = async function(req, res) {
   const city = req.params.city;
   const state = req.query.state;
@@ -280,6 +286,7 @@ const hidden_gems = async function(req, res) {
 
 // Route: GET /most-adventurous-user
 // Description: Find the user who has reviewed the highest number of distinct cuisines
+// leaderboard page - another materialized view
 const most_adventurous_user = async function(req, res) {
   connection.query(
     `SELECT * FROM mv_most_adventurous_user`,
@@ -326,6 +333,7 @@ const top_influencers = async function(req, res) {
 /***********************
  * USER PROFILE ROUTES *
  ***********************/
+// all the user stuff - pretty straightforward CRUD operations mostly
 
 // Route: GET /users/:id
 // Description: Retrieves all information about a user by their user_id
@@ -484,6 +492,7 @@ const update_user_home_state = async function(req, res) {
 
 // Route: PUT /users/:id/favorites
 // Description: Updates user's favorite restaurants
+// ON CONFLICT DO NOTHING is nice here so no errors if someone tries to favorite twice
 const add_favorite = async function(req, res) {
     const userId = req.params.id;
     const businessId = req.body.business_id;
@@ -664,6 +673,8 @@ const list_visited = async function(req, res) {
 
 // Route: GET /michelin-yelp-matches
 // Description: Get matched Michelin and Yelp restaurants with all Michelin details
+// joins michelin and yelp by name + coordinate proximity
+// one of our main challenges we had to figure out
 const michelin_yelp_matches = async function(req, res) {
   connection.query(
     `
@@ -708,6 +719,7 @@ const michelin_yelp_matches = async function(req, res) {
 
 // Route: GET /search-restaurants
 // Description: Search restaurants by partial name with pagination
+// used in the search bar on homepage
 const search_restaurants_by_name = async function(req, res) {
   const name = req.query.name || req.body?.name;
   const page = parseInt(req.query.page, 10) || 1;
@@ -971,6 +983,10 @@ const get_restaurant = async function(req, res) {
 
 // Route: GET /map-restaurants
 // Description: Get restaurants for map within certain radius of addy w/ rating status, photos, reviews, and categories
+// this is probably the most complex query in the whole app lol
+// returns everything the map needs like restaurants, photos, reviews, categories, michelin data
+// had to optimize this a bunch bc it was slow at first
+// used indices and getting rid of unecessary distincts because we realized pkey handles distinct alr
 const map_restaurants = async function(req, res) {
   const start = Date.now();
   const user_lat = parseFloat(req.query.latitude);
@@ -983,6 +999,7 @@ const map_restaurants = async function(req, res) {
   }
 
   // Pre-compute bounding box
+  // 69 miles per degree of latitude, adjust longitude for earth's curvature
   const lat_min = user_lat - (radius / 69.0);
   const lat_max = user_lat + (radius / 69.0);
   const long_min = user_long - (radius / (69.0 * Math.cos(user_lat * Math.PI / 180)));
@@ -1170,6 +1187,8 @@ const list_business_photos = async function(req, res) {
 /************************
  * IMAGE FETCH ROUTE    *
  ************************/
+// this handles fetching images from s3 buckets
+// supports both public http urls and s3:// urls
 
 const axios = require("axios");
 const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
@@ -1238,10 +1257,12 @@ const fetch_image = async function(req, res) {
 /************************
  * USER AUTH ROUTES   *
  ************************/
+// supports local login (email/password), google oauth, and github oauth
 
 const bcrypt = require('bcrypt');
 const SALT_ROUNDS = 10;
 
+// creates new user with local auth (email/password)
 const create_user_auth = async function(req, res) {
   const { name, email, password, city = null, state = null } = req.body;
 
@@ -1250,6 +1271,7 @@ const create_user_auth = async function(req, res) {
   }
 
   try {
+    // check if email already exists
     const existing = await connection.query(
       'SELECT * FROM users WHERE email = $1',
       [email]
@@ -1330,6 +1352,7 @@ const googleClient = new OAuth2Client(config.google_client_id);
 
 // Route: POST /auth/google
 // Body: { idToken }
+// verifies google id token and creates/logs in user
 const login_google = async function(req, res) {
   const { idToken } = req.body;
 
@@ -1425,6 +1448,7 @@ const FRONTEND_URL = config.frontend_url || 'http://localhost:3000';
 
 // Route: GET /auth/github/start
 // Description: Redirect user to GitHub OAuth consent screen
+// github oauth is a 2-step process - this starts it by redirecting to github
 const github_start = async function(req, res) {
   try {
     const state = crypto.randomBytes(16).toString('hex');
@@ -1448,6 +1472,7 @@ const github_start = async function(req, res) {
 
 // Route: GET /auth/github/callback
 // Description: Handle GitHub OAuth callback, create/login user, then redirect to frontend
+// github redirects back here with a code, we exchange it for user info
 const github_callback = async function(req, res) {
   const { code, state } = req.query;
 
@@ -1575,6 +1600,7 @@ const github_callback = async function(req, res) {
 
 // Route: GET /all-cities
 // Description: Get all distinct city/state pairs from YelpRestaurantInfo
+// used for the city dropdown on explore cities page
 const all_cities = async function(req, res) {
   connection.query(
     `
