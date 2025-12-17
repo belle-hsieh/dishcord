@@ -31,6 +31,9 @@ Dishcord aggregates Yelp and Michelin data to:
 - 🖼️ Yelp Photos Dataset: Large image corpus for the photo gallery (stored/retrieved via cloud storage such as AWS S3).
 - 🧹 Data Preparation: Remove records missing essentials; resolve duplicates; perform cross-source entity matching; validate coordinates for map/location features.
 
+## Demo Video 🎥
+https://drive.google.com/file/d/1sbKg9o3O_KooSbV6CQYUC0inQ7GPdyKE/view?usp=sharing
+
 ---
 Questions or feedback? Open an issue and we’ll take a look. 💬
 
