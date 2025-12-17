@@ -43,9 +43,6 @@ Dishcord aggregates Yelp and Michelin data to:
 - **Data Science:** Jupyter Notebooks (`*.ipynb`) for preprocessing, statistics, and formatting
 - **Languages:** JavaScript (frontend and backend), SQL (PostgreSQL), Python (notebooks)
 
-## Demo Video 🎥
-https://drive.google.com/file/d/1sbKg9o3O_KooSbV6CQYUC0inQ7GPdyKE/view?usp=sharing
-
 ---
 Questions or feedback? Open an issue and we’ll take a look. 💬
 
