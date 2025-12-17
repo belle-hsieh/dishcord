@@ -31,6 +31,18 @@ Dishcord aggregates Yelp and Michelin data to:
 - 🖼️ Yelp Photos Dataset: Large image corpus for the photo gallery (stored/retrieved via cloud storage such as AWS S3).
 - 🧹 Data Preparation: Remove records missing essentials; resolve duplicates; perform cross-source entity matching; validate coordinates for map/location features.
 
+## Tech Stack 🧰
+- **Frontend:** React (Create React App), React Router, Material UI (`@mui/material`), Emotion (`@emotion/*`), Axios, Web Vitals
+- **Mapping:** `@react-google-maps/api` for map rendering and interactions
+- **Backend:** Node.js, Express, CORS, Cookie Parser, Axios
+- **Auth & Security:** Google Auth Library, Bcrypt
+- **Database:** PostgreSQL (`pg`) on AWS RDS
+- **Storage:** AWS S3 via `@aws-sdk/client-s3` for photos
+- **Testing:** Jest, Supertest, React Testing Library
+- **Dev Tools:** Nodemon, ESLint via `react-app` config, Browserslist
+- **Data Science:** Jupyter Notebooks (`*.ipynb`) for preprocessing, statistics, and formatting
+- **Languages:** JavaScript (frontend and backend), SQL (PostgreSQL), Python (notebooks)
+
 ## Demo Video 🎥
 https://drive.google.com/file/d/1sbKg9o3O_KooSbV6CQYUC0inQ7GPdyKE/view?usp=sharing
 
